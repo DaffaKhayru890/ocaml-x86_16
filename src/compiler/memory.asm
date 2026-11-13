@@ -25,6 +25,22 @@ compiler_initialize:
     mov byte [ds:WORK_CODEGEN_HALT_EMITTED], 0
     mov byte [ds:WORK_CODEGEN_PROLOGUE_EMITTED], 0
     mov byte [ds:WORK_RESERVED_1F], 0
+    mov word [ds:WORK_INSTRUCTION_COUNT], 0
+    mov word [ds:WORK_LABEL_COUNT], 0
+    mov word [ds:WORK_RELOCATION_COUNT], 0
+    mov byte [ds:WORK_CFG_CHANGED], 0
+    mov word [ds:WORK_CFG_ITERATIONS], 0
+    mov word [ds:WORK_CURRENT_INSTRUCTION], 0
+    mov word [ds:WORK_CURRENT_IR_OFFSET], 0
+    mov word [ds:WORK_CURRENT_PATCH_OFFSET], 0
+    mov word [ds:WORK_TEMP_LABEL_ID], 0
+    mov word [ds:WORK_TEMP_INDEX], 0
+    mov word [ds:WORK_REACHABLE_HALTS], 0
+    mov word [ds:WORK_TEMP_DEPTH], 0
+    mov word [ds:WORK_TEMP_BITMAP], 0
+    mov word [ds:WORK_TEMP_BITMAP + 2], 0
+    mov word [ds:WORK_TEMP_BITMAP + 4], 0
+    mov word [ds:WORK_TEMP_BITMAP + 6], 0
     call clear_local_init_bitmap
     xor di, di
     ret

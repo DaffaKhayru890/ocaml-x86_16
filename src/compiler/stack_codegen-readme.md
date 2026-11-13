@@ -1,36 +1,27 @@
-# Validasi virtual stack
+# Pencatatan error stack dan CFG
 
-## Konsep dan tujuan
+## Konsep dan fungsi
 
-Validator menjaga kedalaman stack semantik sebelum dan selama codegen.
-Counter pada work memory bukan stack hardware; stack hardware compiler
-berada pada `5000:FFFE`, sedangkan program menggunakan `4000:FFFE`.
+Stack validation tidak lagi berjalan linear di file ini. `dataflow.asm`
+menganalisis stack per node CFG; file ini hanya menyediakan jalur pencatatan
+error khusus agar status error juga tersimpan pada `WORK_STACK_ERROR`.
 
-## Register dan prosedur
+## Register dan alamat
 
-DS=`6000h` menunjuk `WORK_STACK_DEPTH`, `WORK_MAX_STACK_DEPTH`,
-`WORK_STACK_ERROR`, opcode, dan status IR. AX membawa kode error; flag CF
-menyatakan berhasil/gagal. `codegen_validate_stack` memvalidasi setiap
-instruksi; `codegen_validate_end` memastikan program berakhir setelah
-satu HALT dengan depth nol; `codegen_record_stack_error` mencatat error
-stack/alur melalui compiler.
+DS=`6000h` menunjuk `WORK_STACK_ERROR` pada offset `001Ah` dan
+`WORK_ERROR_CODE` pada offset `0002h`. AX membawa kode error; CF=1
+menyatakan kegagalan. Pemanggil menggunakan stack compiler
+SS:SP=`5000:FFFE`.
 
-## Alur instruksi
+## Prosedur dan alur
 
-1. Tolak instruksi setelah HALT.
-2. ICONST memastikan batas kapasitas, menaikkan depth, lalu memperbarui
-   maksimum.
-3. ADD/SUB/MUL mensyaratkan dua nilai dan mengurangi depth satu.
-4. NEG mensyaratkan satu nilai dan tidak mengubah depth.
-5. HALT mensyaratkan tepat satu nilai, mengonsumsinya, dan menandai terminator.
-6. IR_END mensyaratkan program berisi instruksi, satu HALT, dan depth nol.
-
-Instruksi unsupported menghasilkan error tersendiri. Jika gagal, AX berisi
-kode, stack error disimpan pada `6001Ah`, dan compiler tidak menjalankan
-output parsial.
+`codegen_record_stack_error` menyalin AX ke `WORK_STACK_ERROR`, memanggil
+`compiler_record_error` untuk menetapkan status/kode umum, lalu kembali
+dengan CF=1. Kode yang sama dipakai untuk underflow/overflow, merge depth
+yang berbeda, fallthrough invalid, dan kegagalan dataflow.
 
 ## Build dan debugging
 
-`make test` menguji underflow, overflow, depth akhir, serta urutan HALT.
-Lihat depth saat akhir di `60016h`, maksimum di `60018h`, dan error stack di
-`6001Ah`.
+Jalankan `make test`; fixtures 11/12 dan 44 memeriksa error stack. Periksa
+`x/2hx 0x6001a` untuk error stack dan `x/2hx 0x60002` untuk status/error
+umum. Analisis per opcode dijelaskan di `dataflow-readme.md`.

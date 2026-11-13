@@ -36,6 +36,8 @@ program_ir_payload:
     %include "src/examples/variable_test_ir.asm"
 %elif IR_TEST_CASE >= 24 && IR_TEST_CASE <= 35
     %include "src/examples/comparison_test_ir.asm"
+%elif IR_TEST_CASE >= 40 && IR_TEST_CASE <= 52
+    %include "tests/runtime/branching-fixtures.asm"
 %else
     %include "tests/runtime/program-fixtures.asm"
 %endif

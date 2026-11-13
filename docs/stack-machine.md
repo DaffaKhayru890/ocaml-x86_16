@@ -18,14 +18,18 @@ work memory. Validator membatasi kedalaman maksimum pada `3FFFh` word
 (konservatif terhadap kapasitas stack runtime 64 KiB). Ini compile-time
 counter, bukan SP. Runtime SP hanya berubah saat generated PUSH/POP.
 
-Pass pertama menolak underflow, overflow, HALT dengan hasil nol/lebih dari
-satu, program kosong, HALT ganda, instruksi setelah HALT, slot lokal di luar
-batas, dan pemuatan slot sebelum diinisialisasi. LOAD_LOCAL menambah depth;
-STORE_LOCAL menguranginya; perbandingan menghasilkan satu Boolean dari dua
-operand. IR_END harus langsung mengikuti satu HALT yang valid.
+Analisis CFG menolak underflow, overflow, stack depth berbeda pada merge,
+HALT dengan hasil nol/lebih dari satu, jalur reachable yang jatuh melewati
+akhir, slot di luar batas, dan LOAD_LOCAL yang belum definite-assigned.
+LOAD_LOCAL menambah depth; STORE_LOCAL menguranginya; perbandingan
+menghasilkan satu Boolean dari dua operand. Setiap HALT reachable menerima
+tepat satu hasil dan menjadi terminal; beberapa HALT diperbolehkan.
 
-Bitmap inisialisasi diperiksa secara linear. Karena branch/label belum
-didukung, belum ada penggabungan keadaan variabel dari beberapa jalur kontrol.
+Bitmap di-intersect pada merge. Bila STORE_LOCAL hanya terjadi pada salah
+satu predecessor, bit slot hilang dan LOAD_LOCAL di node merge ditolak.
+JZ/JNZ mengonsumsi kondisi, dengan satu edge ke target dan satu edge
+fallthrough; JMP hanya memiliki edge target. Instruksi setelah HALT dapat
+tetap reachable dari branch lain, tetapi tidak menerima state dari HALT.
 
 Untuk `(7+5)*3`, depth bergerak `0,1,2,1,2,1,0`; maksimum dua dan depth akhir
 nol sesudah HALT mengambil hasil akhir untuk disimpan.

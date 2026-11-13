@@ -1,4 +1,4 @@
-# Compiler Bare-Metal x86 16-bit — Phase 00/01/02/03
+# Compiler Bare-Metal x86 16-bit — Phase 00–04
 
 ## Tujuan
 
@@ -13,53 +13,58 @@ Target adalah machine QEMU `pc` melalui `qemu-system-i386` dan opsi `-bios`
 dengan citra kustom. CPU x86 modern memasuki alamat fisik `FFFFFFF0h`, bukan
 reset vector `FFFF:0000` milik 8086/8088 klasik. QEMU memetakan firmware PC
 di bagian atas ruang alamat dan menyediakan alias legacy untuk ROM berukuran
-64 KiB mulai `F0000h`. Reset vector mengandung far jump ke `F000:0000`,
-sehingga eksekusi beralih ke alias tersebut dan CS menjadi segmen real-mode
-yang dapat dipakai. Detail dan cara memverifikasi pemetaan ada di
-`reset-vector.md`.
+64 KiB mulai `F0000h`. Reset vector menjalankan far jump ke `F000:0000`.
+Detail dan cara memverifikasi pemetaan ada di `reset-vector.md`.
 
 ## Struktur
 
 - `src/firmware.asm`: perakitan flat binary dan urutan modul.
 - `src/boot/*.asm`: entry, inisialisasi, main, dan reset vector; tiap modul
   memiliki README pendamping.
-- `src/compiler/*.asm`: reader, dispatcher, stack/local validator, code
-  generator, arithmetic, variables, local memory, comparison, Boolean,
-  emitter, runtime, dan compiler main; tiap modul memiliki README.
+- `src/compiler/*.asm`: reader, dispatcher, tabel alur kontrol, CFG/dataflow,
+  relocation, code generator, arithmetic, variables, runtime, dan main; tiap
+  modul memiliki README.
 - `src/examples/*.asm`: contoh IR arithmetic, variabel, dan comparison.
-- `include/*.inc`: konstanta firmware dan peta region.
+- `include/*.inc`: konstanta firmware, opcode, layout work memory, serta
+  batas tabel CFG.
 - `scripts/`: build serta peluncuran QEMU di Linux dan Windows.
 - `build/custom_rom.bin`: keluaran 65536 byte.
-- `tests/`: fixture arithmetic/stack/runtime, emitter self-test, pengujian QEMU.
-- `docs/`: penjelasan firmware, compiler, IR, codegen, runtime, dan debugging.
+- `tests/`: fixture emitter, runtime, CFG, branching, relocation, dan error.
+- `docs/`: penjelasan firmware, compiler, IR, codegen, runtime, serta debug.
 
 ## Build dan jalankan
 
 Linux: `make` atau `scripts/build.sh`; lalu `scripts/run-qemu.sh`.
 Windows: `scripts\build.bat`, lalu `scripts\run-qemu.bat`.
 QEMU berhenti sebelum instruksi pertama dan membuka GDB remote di port 1234.
-Sambungkan dengan `gdb -ex 'target remote :1234'`. Untuk melanjutkan gunakan
-`continue`; untuk inspeksi instruksi gunakan `x/i $cs*16+$eip` pada mode
-real yang telah berpindah dari reset.
+Sambungkan dengan `gdb -ex 'target remote :1234'`. Untuk inspeksi instruksi,
+gunakan `x/i $cs*16+$eip` setelah berpindah dari reset.
 
-Build memeriksa ukuran ROM dan reset vector, menghasilkan `build/custom_rom.lst`
-untuk pemetaan source ke offset. `make test` menguji arithmetic, generated
-bytes, error stack/IR, hasil runtime, dan HLT di QEMU.
+Build memeriksa ukuran ROM, reset vector, dan encoding conditional jump 8086,
+serta menghasilkan `build/custom_rom.lst`. `make test` membangun fixture,
+menjalankannya di QEMU, lalu memeriksa register, memory, machine code, hasil,
+dan error.
 
-## Batasan phase
+## Fitur Phase 04 dan batasan
 
-Phase 03 mendukung ICONST, LOAD_LOCAL, STORE_LOCAL, ADD, SUB, MUL, NEG,
-EQ, NE, LT, GT, dan HALT. Branch/label relocation serta overflow exception
-belum didukung. Nilai arithmetic berwrap modulo 65536. CPU dapat dibangunkan NMI meskipun IRQ dimatikan.
-Implementasi ini khusus konfigurasi PC QEMU yang diuji, bukan firmware
-universal untuk semua machine atau CPU 8086.
+Opcode yang didukung: ICONST, LOAD_LOCAL, STORE_LOCAL, ADD, SUB, MUL, NEG,
+EQ, NE, LT, GT, LABEL, JMP, JZ, JNZ, dan HALT. JMP memakai `E9 rel16`;
+JZ/JNZ memakai POP/TEST, short jump pembalik kondisi, lalu JMP near.
+Validasi stack serta definite assignment dilakukan pada control-flow graph
+(CFG), termasuk merge dan loop. Beberapa HALT diperbolehkan jika setiap
+terminal yang reachable menerima tepat satu nilai.
 
-## Rujukan Phase 02 dan 03
+Batas tabel adalah 256 instruksi executable, 64 label, 128 relocation, dan
+4096 byte output. Nilai arithmetic berwrap modulo 65536. Implementasi khusus
+konfigurasi PC QEMU yang diuji, bukan firmware universal untuk semua machine
+atau CPU 8086.
 
-- `compiler-architecture.md` dan `code-generation.md`: alur compiler dua pass.
-- `stack-machine.md` dan `arithmetic.md`: aturan stack virtual dan operasi.
-- `machine-code-reference.md`: byte encoding instruksi yang dihasilkan.
-- `runtime.md` dan `memory-map.md`: prologue, hasil, stack, dan peta alamat.
-- `debugging.md` dan `qemu-debugging.md`: pemeriksaan GDB/QEMU serta hasil tes.
-- `local-variables.md` dan `local-memory-layout.md`: slot variabel dan bitmap.
-- `comparison.md` dan `boolean-representation.md`: comparison signed dan Boolean.
+## Dokumentasi terkait
+
+- `compiler-architecture.md`, `code-generation.md`, dan `memory-map.md`:
+  pipeline, codegen, dan alamat tabel.
+- `control-flow-readme.md`, `cfg-readme.md`, `dataflow-readme.md`,
+  `relocation-readme.md`, dan `jump-codegen-readme.md`: modul Phase 04.
+- `stack-machine.md`, `arithmetic.md`, `local-variables.md`,
+  `comparison.md`, dan `runtime.md`: semantik runtime.
+- `debugging.md` dan `qemu-debugging.md`: pemeriksaan QEMU/GDB serta hasil tes.

@@ -21,13 +21,11 @@ EXPECTED_ERRORS = {
     11: 0x000A,
     12: 0x000C,
     13: 0x0013,
-    14: 0x0011,
-    15: 0x0011,
     16: 0x0010,
-    17: 0x000B,
-    18: 0x0011,
+    17: 0x001F,
+    18: 0x001E,
     19: 0x0010,
-    20: 0x0008,
+    20: 0x001F,
     101: 0x0001,
     102: 0x0002,
     103: 0x0003,
@@ -39,8 +37,14 @@ EXPECTED_ERRORS = {
     109: 0x0012,
     110: 0x000A,
     111: 0x000A,
+    44: 0x001D,
+    45: 0x0017,
+    46: 0x0018,
+    47: 0x001B,
+    48: 0x0013,
+    51: 0x001A,
+    52: 0x0019,
 }
-PASS_ONE_ERRORS = {13, 108, 109, 110, 111}
 PROGRAMS = {
     0: ([("iconst", 7), ("iconst", 5), ("add",), ("iconst", 3), ("mul",)], 36),
     1: ([("iconst", 42)], 42),
@@ -62,6 +66,73 @@ PROGRAMS = {
     8: ([("iconst", -32768)], -32768),
     9: ([("iconst", 32767), ("iconst", 1), ("add",)], -32768),
     10: ([("iconst", -32768), ("neg",)], -32768),
+    14: ([("iconst", 1), ("halt",), ("halt",)], 1),
+    15: ([("iconst", 1), ("halt",), ("iconst", 2)], 1),
+    40: (
+        [
+            ("jmp", 2),
+            ("iconst", 99),
+            ("label", 2),
+            ("iconst", 42),
+            ("halt",),
+        ],
+        42,
+    ),
+    41: (
+        [
+            ("iconst", 3),
+            ("store", 0),
+            ("label", 1),
+            ("load", 0),
+            ("iconst", 1),
+            ("sub",),
+            ("store", 0),
+            ("load", 0),
+            ("jnz", 1),
+            ("iconst", 42),
+            ("halt",),
+        ],
+        42,
+    ),
+    42: (
+        [
+            ("iconst", 0),
+            ("jz", 1),
+            ("iconst", 111),
+            ("jmp", 2),
+            ("label", 1),
+            ("iconst", 42),
+            ("label", 2),
+            ("halt",),
+        ],
+        42,
+    ),
+    43: (
+        [
+            ("iconst", 1),
+            ("jnz", 1),
+            ("iconst", 100),
+            ("jmp", 2),
+            ("label", 1),
+            ("iconst", 55),
+            ("label", 2),
+            ("halt",),
+        ],
+        55,
+    ),
+    49: (
+        [
+            ("iconst", 0),
+            ("jz", 1),
+            ("iconst", 10),
+            ("halt",),
+            ("label", 1),
+            ("iconst", 20),
+            ("halt",),
+        ],
+        20,
+    ),
+    50: ([("iconst", 1), ("halt",), ("load", 0)], 1),
     21: ([("iconst", 10), ("store", 0), ("load", 0)], 10),
     22: (
         [
@@ -134,7 +205,9 @@ EXPECTED_LOCALS = {
     36: {0: 10, 1: 20},
     37: {0: 7, 1: 5, 2: 3},
     38: {63: 77},
+    41: {0: 0},
 }
+PASS_ONE_ERRORS = {13, 44, 45, 46, 47, 48, 52, 108, 109, 110, 111}
 
 
 def read_prompt(connection):
@@ -181,6 +254,8 @@ def encode_operation(operation):
         return bytes(
             (0x5B, 0x58, 0x39, 0xD8, 0xB8, 0, 0, jump, 3, 0xB8, 1, 0, 0x50)
         )
+    if name == "halt":
+        return HALT_SEQUENCE
     return {
         "add": bytes.fromhex("5b 58 01 d8 50"),
         "sub": bytes.fromhex("5b 58 29 d8 50"),
@@ -191,11 +266,46 @@ def encode_operation(operation):
 
 def expected_code(case):
     operations, _ = PROGRAMS[case]
-    return (
-        RUNTIME_PROLOGUE
-        + b"".join(encode_operation(operation) for operation in operations)
-        + HALT_SEQUENCE
-    )
+    labels = {}
+    offset = len(RUNTIME_PROLOGUE)
+    for operation in operations:
+        name = operation[0]
+        if name == "label":
+            labels[operation[1]] = offset
+        elif name == "jmp":
+            offset += 3
+        elif name in ("jz", "jnz"):
+            offset += 8
+        else:
+            offset += len(encode_operation(operation))
+
+    encoded = bytearray()
+    offset = len(RUNTIME_PROLOGUE)
+    for operation in operations:
+        name = operation[0]
+        if name == "label":
+            continue
+        if name in ("jmp", "jz", "jnz"):
+            target = labels[operation[1]]
+            if name == "jmp":
+                displacement = target - (offset + 3)
+                encoded.extend((0xE9, displacement & 0xFF, (displacement >> 8) & 0xFF))
+                offset += 3
+            else:
+                condition = 0x75 if name == "jz" else 0x74
+                displacement = target - (offset + 8)
+                encoded.extend(
+                    (0x58, 0x85, 0xC0, condition, 3, 0xE9,
+                     displacement & 0xFF, (displacement >> 8) & 0xFF)
+                )
+                offset += 8
+            continue
+        operation_code = encode_operation(operation)
+        encoded.extend(operation_code)
+        offset += len(operation_code)
+    if not any(operation[0] == "halt" for operation in operations):
+        encoded.extend(HALT_SEQUENCE)
+    return RUNTIME_PROLOGUE + bytes(encoded)
 
 
 def maximum_stack_depth(operations):
@@ -210,6 +320,8 @@ def maximum_stack_depth(operations):
             maximum = max(maximum, depth)
         elif operation[0] == "store":
             depth -= 1
+        elif operation[0] == "halt":
+            depth = max(0, depth - 1)
         elif operation[0] in ("add", "sub", "mul", "eq", "ne", "lt", "gt"):
             depth -= 1
     return maximum
@@ -237,7 +349,7 @@ def assemble_case(case, output_path):
 
 
 def run_case(case, expected_error=None):
-    with tempfile.TemporaryDirectory(prefix="phase02-") as directory:
+    with tempfile.TemporaryDirectory(prefix="phase04-") as directory:
         rom = (
             ROOT / "build" / "custom_rom.bin"
             if case == 0
@@ -336,10 +448,19 @@ def run_case(case, expected_error=None):
                 raise AssertionError(f"Program {case}: IR tidak berakhir valid.")
             if work[22:24] != [0, 0] or work[29:31] != [1, 1]:
                 raise AssertionError(f"Program {case}: validasi stack/runtime gagal.")
-            maximum = maximum_stack_depth(operations)
+            maximum = {
+                40: 1,
+                41: 2,
+                42: 1,
+                43: 1,
+                49: 1,
+                50: 1,
+            }.get(case, maximum_stack_depth(operations))
             if work[24:26] != [maximum & 0xFF, maximum >> 8]:
                 raise AssertionError(f"Program {case}: maksimum virtual stack salah.")
-            instruction_count = len(operations) + 1
+            instruction_count = len(operations) + int(
+                not any(operation[0] == "halt" for operation in operations)
+            )
             if work[8:10] != [instruction_count & 0xFF, instruction_count >> 8]:
                 raise AssertionError(f"Program {case}: jumlah instruksi salah.")
             code_length = work[10] | (work[11] << 8)

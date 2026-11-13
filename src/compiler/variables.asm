@@ -6,9 +6,6 @@
 ; Alur: hitung offset, emit A1 dengan offset little-endian, lalu PUSH AX.
 codegen_load_local:
     mov al, [ds:WORK_DECODED_OPERAND]
-    call check_local_initialized
-    jc .failed
-    mov al, [ds:WORK_DECODED_OPERAND]
     call calculate_local_address
     jc .failed
     mov bx, ax
@@ -35,6 +32,9 @@ codegen_store_local:
     CODEGEN_EMIT8 MC_POP_AX
     CODEGEN_EMIT8 MC_MOV_MOFFS_AX
     CODEGEN_EMIT16 bx
+    mov al, [ds:WORK_DECODED_OPERAND]
+    call set_local_initialized
+    jc .failed
     clc
     ret
 .failed:

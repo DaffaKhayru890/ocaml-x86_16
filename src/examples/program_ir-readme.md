@@ -3,8 +3,8 @@
 ## Konsep dan tujuan
 
 Tabel ini adalah bytecode IR statis di dalam ROM, bukan source OCaml.
-Compiler membaca header/opcode pada pass pertama, lalu membaca ulang tabel
-untuk menghasilkan machine code pada pass kedua.
+Compiler membaca header/opcode, membangun instruction/label tables, lalu
+menghasilkan machine code dari tabel setelah CFG tervalidasi.
 
 ## Format dan layout
 
@@ -19,17 +19,18 @@ Contoh default menghitung `(7+5)*3`: memasukkan 7 dan 5, ADD, memasukkan 3,
 MUL, HALT, IR_END. IR_ICONST memuat imm16; arithmetic menggunakan stack
 virtual. IR_HALT menyebabkan hasil runtime disimpan ke `3000:0000`. Label,
 STORE_LOCAL dan LOAD_LOCAL menggunakan indeks slot 0–63; EQ, NE, LT, dan GT
-menghasilkan Boolean 0/1. Branch, label relocation, dan opcode lain yang
-belum didukung ditolak.
+menghasilkan Boolean 0/1. LABEL memetakan ID ke instruksi executable;
+JMP/JZ/JNZ menghasilkan branch 8086 dan displacement rel16.
 
 Saat pengujian, `IR_TEST_CASE` memilih program arithmetic, variabel,
 comparison, atau fixture error. Variabel dan comparison berada di
 `variable_test_ir.asm` dan `comparison_test_ir.asm`; fixture error berada di
-`tests/runtime/program-fixtures.asm`. Nilai default nol menyusun contoh
+`tests/runtime/program-fixtures.asm` dan `tests/runtime/branching-fixtures.asm`.
+Nilai default nol menyusun contoh
 `(7+5)*3`.
 
 ## Build dan debugging
 
 Build ROM dengan `make`; jalankan program dan fixture dengan `make test`.
-SI setelah setiap pass menunjuk tepat setelah IR_END dan remaining bernilai
-nol.
+SI setelah tahap decode menunjuk tepat setelah IR_END dan remaining bernilai
+nol; tahap emission memakai instruction table, bukan membaca ulang IR.

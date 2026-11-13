@@ -3,10 +3,10 @@
 ## Konsep dan hubungan
 
 `variables.asm` mengelola indeks slot dan bitmap inisialisasi di work memory,
-serta membuat instruksi akses slot pada runtime. Validator stack memanggil
-helper bitmap pada Pass 1 dan Pass 2; code generator memanggil helper alamat
-untuk membuat instruksi. Nilai variabel tetap berada di DS runtime=`3000h`,
-tidak di compiler work memory.
+serta membuat instruksi akses slot pada runtime. Analisis dataflow memanggil
+helper bitmap pada Pass analisis; code generator memakai helper alamat untuk
+membuat instruksi. Nilai variabel tetap berada di DS runtime=`3000h`, bukan
+di compiler work memory.
 
 ## Prosedur validasi dan bitmap
 
@@ -23,7 +23,8 @@ tidak di compiler work memory.
   OR. AX/BX/CX dipulihkan.
 - `check_local_initialized`: memakai indeks byte dan masker yang sama,
   memeriksa bit memakai TEST, dan mencatat `ERR_UNINITIALIZED_LOCAL` jika
-  bit nol. AX/BX/CX dipulihkan.
+  bit nol. AX/BX/CX dipulihkan. BH dibersihkan sebelum alamat bitmap dihitung
+  agar pointer tabel di BX tidak merusak offset byte bitmap.
 
 `SHR`/`SHL` dengan CL, TEST, OR, CMP, dan LOOP adalah instruksi 8086.
 Tidak ada instruksi bitset modern. Compiler stack saat helper bitmap
@@ -31,8 +32,10 @@ dipanggil adalah SS:SP=`5000:FFFE`.
 
 ## Code generation
 
-- `codegen_load_local`: membaca slot dari `WORK_DECODED_OPERAND`, memeriksa
-  bitmap, menghitung offset, lalu mengirim `A1 lo hi 50` melalui emitter.
+- `codegen_load_local`: membaca slot dari `WORK_DECODED_OPERAND`, menghitung
+  offset, lalu mengirim `A1 lo hi 50` melalui emitter. Validasi inisialisasi
+  telah dilakukan oleh analisis CFG; codegen tidak memvalidasi ulang agar
+  LOAD_LOCAL unreachable sesudah terminal tetap dapat diemits.
   Ini `MOV AX,[disp16]; PUSH AX`; A1 memakai DS implisit.
 - `codegen_store_local`: menghitung offset dan mengirim
   `58 A3 lo hi` melalui emitter. Ini `POP AX; MOV [disp16],AX`.
@@ -40,8 +43,8 @@ dipanggil adalah SS:SP=`5000:FFFE`.
 Offset disimpan sementara di BX karena macro emitter memakai AL/AX; emitter
 mempertahankan BX. Panjang dan DI diperbarui hanya oleh emit8/emit16.
 Kegagalan emitter memulangkan CF=1 dan compiler tidak melakukan far jump.
-Stack depth diperbarui terpusat oleh `codegen_validate_stack`, bukan lagi
-oleh prosedur emit.
+Stack depth dianalisis terpusat oleh `dataflow_fixed_point`, bukan oleh
+prosedur emit.
 
 ## Build dan debugging
 

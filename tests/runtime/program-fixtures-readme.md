@@ -6,7 +6,7 @@ File assembly ini menyusun payload IR alternatif berdasarkan `IR_TEST_CASE`.
 `src/examples/program_ir.asm` menyertakan fixture ini hanya pada build test;
 script pengujian memilih fixture, merakit ROM, lalu memeriksa hasil QEMU.
 Fixture valid menguji operasi runtime, sedangkan nomor 11 ke atas menguji
-error validator/compiler atau kapasitas emitter. Kasus 108–111 menguji slot
+error validator/compiler atau kapasitas tabel. Kasus 108–111 menguji slot
 invalid, STORE_LOCAL tanpa nilai, dan comparison dengan operand kurang.
 
 ## Register dan alamat
@@ -21,9 +21,9 @@ diakses langsung oleh definisi `db`/`dw`.
 Setiap `db IR_ICONST` diikuti word immediate little-endian. Opcode ADD/SUB/
 MUL/NEG dan HALT membentuk program stack-based; `IR_END` menutup payload.
 Kasus valid arithmetic 1–10 mencakup nilai positif/negatif dan wraparound.
-Kasus error 11–20 serta 101–111 sengaja memicu underflow, depth salah, opcode
-belum didukung, flow/HALT invalid, IR terpotong, data sesudah END, overflow
-stack/output, slot invalid, uninitialized local, atau comparison underflow.
+kasus error 11–20 serta 101–111 sengaja memicu underflow, depth salah, opcode
+belum didukung, flow invalid, IR terpotong, data sesudah END, overflow tabel,
+slot invalid, uninitialized local, atau comparison underflow.
 
 Assembler directive `%if/%elif` memilih satu kasus dan `dw` menulis nilai
 16-bit little-endian; tidak ada routine atau instruksi runtime dalam file

@@ -21,16 +21,17 @@ prologue runtime menetapkan DS=`3000h`, akses langsung menuju runtime data.
 
 ## Validasi dan bitmap
 
-Pass pertama menghapus bitmap delapan byte pada work memory `6000:0020`.
-Setiap `STORE_LOCAL` memeriksa stack dan indeks slot, lalu menandai bit.
-`LOAD_LOCAL` menolak slot yang bit-nya masih nol. Dengan 64 slot, byte bitmap
-adalah `slot / 8` dan posisi bit adalah `slot % 8`. Instruksi 8086 `SHR`,
-`SHL`, `TEST`, dan `OR` digunakan tanpa fitur bitset modern.
+Tahap analisis menghapus bitmap delapan byte pada work memory `6000:0020`.
+Setiap `STORE_LOCAL` memeriksa stack dan slot, lalu menandai bit pada state
+transfer. `LOAD_LOCAL` memerlukan bit aktif pada state masuk node. Pada merge,
+bitmap predecessor di-intersect sehingga slot dianggap initialized hanya
+bila setiap jalur reachable telah menulisnya. Instruksi 8086 `SHR`, `SHL`,
+`TEST`, dan `OR` digunakan tanpa fitur bitset modern.
 
-Pass kedua menghapus bitmap dan mengulang validasi stack/slot secara linear
-sambil membuat code. Fitur branch belum tersedia, jadi belum ada alur
-kontrol yang memerlukan penggabungan keadaan inisialisasi dari beberapa jalur.
-Kesalahan pada pass pertama menghentikan compiler sebelum emitter berjalan.
+Codegen memakai state bitmap per instruksi, tetapi tidak mengulang validasi
+definite-assignment. Instruksi unreachable tetap dapat diemits tanpa
+menjadikannya jalur runtime. Slot dengan indeks di luar 0–63 tetap ditolak
+saat decode untuk semua instruksi.
 
 ## Contoh dan debugging
 

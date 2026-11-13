@@ -22,11 +22,12 @@ firmware_main
         v
 compiler_main
         |
-        +--> Pass 1: Reader -> Dispatcher -> validasi IR dan virtual stack
+        +--> Decode IR -> instruction/label tables -> resolve branch
+        |                     -> CFG + stack/local fixed-point
         |
         +--> Emitter self-test terisolasi
         |
-        +--> Pass 2: codegen -> output RAM 2000:0000
+        +--> Emission table -> codegen -> relocation rel16
         |
         +--> validasi code -> far jump 2000:0000 -> runtime -> HLT
 ```
@@ -55,14 +56,14 @@ instruksi far jump lima byte pada offset `FFF0h`, lalu padding akhir
 menghasilkan panjang tepat `10000h`. `ORG` tidak memetakan ROM ke alamat
 fisik dan tidak menambahkan prefix ke file.
 
-Sesudah inisialisasi stack Phase 00, firmware menjalankan compiler Phase 03.
-Pass pertama menggunakan DS=`6000h` untuk state dan CS override untuk
-membaca/validasi IR tanpa output. Bitmap lokal melacak STORE/LOAD secara
-linear; self-test emitter dijalankan terpisah. Pass kedua mengulang IR dan
-mengeluarkan instruksi dengan ES=`2000h`. Compiler memvalidasi bentuk code
-sebelum far jump. Generated code memakai DS=`3000h` untuk hasil dan 64 slot
-lokal, serta SS:SP=`4000:FFFE` untuk stack. EQ/NE/LT/GT menghasilkan nilai
-Boolean 0/1 melalui CMP dan Jcc 8086.
+Sesudah inisialisasi stack Phase 00, firmware menjalankan compiler Phase 04.
+Tahap analisis memakai DS=`6000h` dan CS override untuk membaca IR, membangun
+tabel, menyelesaikan branch, serta memvalidasi stack/local pada CFG tanpa
+output. Self-test emitter dijalankan terpisah. Emission berikutnya membaca
+instruction table dan mengeluarkan instruksi dengan ES=`2000h`; relocation
+menambal rel16 sebelum validasi akhir dan far jump. Generated code memakai
+DS=`3000h` untuk hasil dan 64 slot lokal, serta SS:SP=`4000:FFFE` untuk
+stack. EQ/NE/LT/GT menghasilkan Boolean 0/1 melalui CMP dan Jcc 8086.
 
 Dokumen detail: `compiler-architecture.md`, `code-generation.md`,
 `stack-machine.md`, `arithmetic.md`, `local-variables.md`,

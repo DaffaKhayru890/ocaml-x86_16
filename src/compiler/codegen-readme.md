@@ -2,28 +2,29 @@
 
 ## Konsep dan tujuan
 
-Modul ini menjadi Pass 2 setelah seluruh IR dan stack tervalidasi. Ia
-menginisialisasi pembacaan IR dan emitter kembali, mengirim setiap opcode ke
-generator terkait, lalu memeriksa bentuk executable buffer sebelum compiler
-melakukan far jump.
+Modul ini menjadi tahap emission setelah IR dan CFG tervalidasi. Ia
+menginisialisasi emitter, mengambil record dari instruction table, mengirim
+opcode ke generator terkait, lalu memeriksa buffer sebelum far jump.
 
 ## Hubungan dan register
 
-`codegen_init` memakai reader (`CS:SI`), work memory (`DS=6000h`) dan emitter
-(`ES:DI`, `ES=2000h`). `codegen_generate_program` memakai AX/BX/CX untuk
-dispatch/validasi, SI sebagai pointer IR, dan DI sebagai output offset.
+`codegen_init` memakai work memory (`DS=6000h`) dan emitter (`ES:DI`,
+`ES=2000h`). `codegen_generate_program` mengambil data dari record DS,
+menggunakan SI untuk menyalin bitmap state, dan DI sebagai output offset.
 Prosedur mempertahankan DS/ES; register lain tidak dijanjikan tetap.
 
 ## Urutan prosedur
 
-- `codegen_init`: bersihkan virtual stack/flags; status RUNNING; ulangi
-  `ir_init` serta header validation; inisialisasi emitter.
-- `codegen_dispatch`: pilih ICONST, ADD, SUB, MUL, NEG, atau HALT; opcode
+- `codegen_init`: atur status codegen, bersihkan bitmap sementara, dan
+  inisialisasi emitter tanpa menghapus hasil analisis.
+- `codegen_dispatch`: pilih ICONST, local, arithmetic, comparison, branch,
+  atau HALT; opcode
   tanpa generator mencatat `ERR_UNSUPPORTED_OPCODE`.
-- `codegen_generate_program`: baca opcode, validasi efek stack, emit, dan
-  ulang sampai IR_END; lalu validasi akhir dan buffer.
+- `codegen_generate_program`: delegasikan ke generator instruction table,
+  catat label offsets, terapkan relocation, lalu validasi buffer.
 - `codegen_validate_generated_code`: periksa flag prologue/HALT/IR_END,
-  stack kosong, kapasitas/panjang, 14 byte prologue dan tujuh byte suffix.
+  stack compile-time, kapasitas/panjang, dan 14 byte prologue. Validasi tidak
+  mengasumsikan HALT terakhir karena setiap HALT membuat loop terminal.
 
 Pemeriksaan word memakai little-endian x86; contoh word di offset nol
 `B8FAh` mewakili byte `FA B8`. Prosedur validasi membaca kembali RAM output,
@@ -31,5 +32,6 @@ bukan mengubahnya.
 
 ## Build dan debugging
 
-`make test` menguji hasil dan error. Periksa DI/panjang di `6000Ah` dan byte
-output di `20000h` menggunakan GDB; rincian ada di `docs/debugging.md`.
+`make test` menguji hasil dan error. Periksa DI/panjang di `6000Ah`, tabel
+mulai `60100h`, serta output di `20000h` menggunakan GDB; rincian ada di
+`docs/debugging.md`.

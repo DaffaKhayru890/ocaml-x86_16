@@ -71,6 +71,7 @@ set_local_initialized:
     call validate_local_slot
     jc .failed
     mov bl, al
+    xor bh, bh
     mov cl, 3
     shr bl, cl
     mov cl, al
@@ -101,6 +102,7 @@ check_local_initialized:
     call validate_local_slot
     jc .failed
     mov bl, al
+    xor bh, bh
     mov cl, 3
     shr bl, cl
     mov cl, al

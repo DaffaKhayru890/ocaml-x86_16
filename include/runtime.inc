@@ -22,3 +22,8 @@ MC_MOV_AX_MOFFS         equ 0xA1
 MC_HLT                  equ 0xF4
 MC_JMP_SHORT            equ 0xEB
 MC_JMP_SHORT_BACK_3     equ 0xFD
+MC_JMP_NEAR             equ 0xE9
+MC_JZ_SHORT             equ 0x74
+MC_JNZ_SHORT            equ 0x75
+MC_TEST_AX_AX           equ 0x85
+MC_MODRM_TEST_AX_AX     equ 0xC0

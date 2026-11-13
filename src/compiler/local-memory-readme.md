@@ -38,8 +38,9 @@ pemanggil dapat mempertahankan status operand yang diperlukan.
 ## Hubungan modul dan urutan
 
 `clear_local_init_bitmap`, `set_local_initialized`, dan
-`check_local_initialized` dipanggil validator secara linear. `calculate_local_address`
-memvalidasi indeks dan batas sebelum codegen. Runtime load memakai A1
+`check_local_initialized` dipakai oleh analisis dataflow per node CFG.
+`calculate_local_address` memvalidasi indeks dan batas sebelum emission.
+Runtime load memakai A1
 (`MOV AX,[disp16]`), sedangkan store memakai A3 (`MOV [disp16],AX`).
 Keduanya memakai DS implisit yang sudah diset ke `3000h`.
 

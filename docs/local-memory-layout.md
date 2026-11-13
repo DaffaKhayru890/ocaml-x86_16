@@ -9,7 +9,7 @@ menggunakan DS=`3000h`, sehingga alamat fisik slot adalah `30000h + offset`.
 |---|---:|---:|---:|---|
 | Hasil akhir | `0000h–0001h` | `30000h–30001h` | 2 byte | Word hasil program |
 | Slot lokal | `0002h–0081h` | `30002h–30081h` | 128 byte | 64 slot, masing-masing 2 byte |
-| Cadangan | `0082h–FFFFh` | `30082h–3FFFFh` | 65406 byte | Tidak dipakai Phase 03 |
+| Cadangan | `0082h–FFFFh` | `30082h–3FFFFh` | 65406 byte | Belum dipakai runtime |
 
 Konstanta berada di `include/variables.inc`:
 
@@ -30,7 +30,9 @@ hasil akhir.
 Bitmap compiler berada di segment DS=`6000h`, bukan di runtime data dan
 bukan di slot nilai. `WORK_LOCAL_INIT_BITMAP` mulai offset `0020h` dan
 memakai delapan byte sampai `0027h`. Bit nol berarti belum ditulis; bit satu
-berarti pernah disimpan dalam alur IR yang divalidasi.
+berarti definite-assigned pada semua predecessor reachable setelah analisis
+CFG. State per-instruction berada di instruction table, bukan disimpan di
+runtime data.
 
 ```text
 WORK segment 6000h:

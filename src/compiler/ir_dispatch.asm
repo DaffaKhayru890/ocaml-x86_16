@@ -99,34 +99,10 @@ ir_validate_instruction:
     stc
     ret
 
-; Memvalidasi payload sampai IR_END atau mencatat kondisi terminasi yang gagal.
+; Menjalankan decode, resolusi label, dan analisis CFG melalui tabel instruksi.
 ; Masukan: SI berada di awal payload dan WORK_IR_REMAINING berisi panjangnya.
-; Keluaran: WORK_IR_END_SEEN=1 jika valid; CF=0.
-; Register berubah: AX, CX, SI, flag.
-; Kesalahan: payload habis tanpa IR_END atau salah satu instruksi tidak valid.
+; Keluaran: tabel/CFG tervalidasi; CF=0.
+; Register berubah: AX, BX, CX, DX, SI, flag.
+; Kesalahan: IR malformed, target invalid, stack, atau dataflow gagal.
 ir_validate_program:
-    call clear_local_init_bitmap
-    mov word [ds:WORK_STACK_DEPTH], 0
-    mov word [ds:WORK_MAX_STACK_DEPTH], 0
-    mov word [ds:WORK_STACK_ERROR], 0
-    mov byte [ds:WORK_IR_HALT_SEEN], 0
-.next_instruction:
-    cmp word [ds:WORK_IR_REMAINING], 0
-    je .missing_end
-    call ir_dispatch_opcode
-    jc .failed
-    cmp byte [ds:WORK_IR_END_SEEN], 1
-    je .end
-    call codegen_validate_stack
-    jc .failed
-    jmp .next_instruction
-.end:
-    call codegen_validate_end
-    ret
-.missing_end:
-    mov ax, ERR_MISSING_END
-    call compiler_record_error
-    ret
-.failed:
-    stc
-    ret
+    jmp control_flow_validate_program

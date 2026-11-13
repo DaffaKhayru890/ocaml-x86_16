@@ -1,4 +1,4 @@
-# Debugging compiler dan runtime Phase 03
+# Debugging compiler dan runtime Phase 04
 
 ## Jalankan build dan tes
 
@@ -10,6 +10,8 @@ make test
 `make test` merakit ROM untuk setiap fixture, menjalankannya di QEMU dengan
 monitor HMP lokal, lalu memeriksa register dan RAM. Build membuat listing
 `build/custom_rom.lst` untuk menghubungkan offset instruksi dengan source.
+Fixture 40–43 dan 49 menguji jump forward/backward, kondisi dan beberapa
+terminal HALT; fixture 44–48 menguji merge dan error label/dataflow.
 
 ## Debug firmware/compiler dengan GDB
 
@@ -44,6 +46,9 @@ Periksa status, stack, dan hasil:
 
 ```gdb
 x/40bx 0x60000
+x/64bx 0x60100
+x/32bx 0x61400
+x/32bx 0x61600
 x/64bx 0x20000
 x/hx 0x30000
 x/hx 0x30002
@@ -90,15 +95,51 @@ hasil benar didorong.
 | `000Eh` | Code generation gagal |
 | `000Fh` | Runtime generated code tidak valid |
 | `0010h` | Program kosong atau HALT tanpa hasil |
-| `0011h` | HALT bukan instruksi semantik terakhir |
+| `0011h` | Kode alur IR lama, tidak dihasilkan validator CFG |
 | `0012h` | Slot lokal di luar rentang 0–63 |
 | `0013h` | Slot lokal dibaca sebelum diinisialisasi |
 | `0014h` | Perhitungan slot melewati area lokal yang ditetapkan |
 | `0015h` | Nilai Boolean selain nol/satu diminta dibuat |
 | `0016h` | Opcode perbandingan tidak dapat dipetakan |
+| `0017h` | ID label branch tidak didefinisikan |
+| `0018h` | ID label didefinisikan lebih dari sekali |
+| `0019h` | Tabel label penuh |
+| `001Ah` | Tabel relocation penuh |
+| `001Bh` | Label tidak menunjuk instruksi executable |
+| `001Ch` | Displacement rel16 di luar rentang |
+| `001Dh` | Kedalaman stack predecessor pada merge berbeda |
+| `001Eh` | Jalur reachable jatuh melewati akhir IR |
+| `001Fh` | Instruction table penuh |
+| `0020h` | Analisis dataflow tidak mencapai fixed-point |
+| `0021h` | CFG tidak memiliki terminal HALT reachable |
+| `0022h` | Record relocation atau patch tidak valid |
 
-Kode `0011h` sudah dipakai `ERR_INVALID_IR_FLOW` pada Phase 02, sehingga
-kode baru dimulai dari `0012h` agar tidak ada nilai error yang bertabrakan.
+Kode `0016h` sudah dipakai `ERR_COMPARISON_FAILED`; karena itu error Phase 04
+dimulai dari `0017h`.
 
 Error compiler berhenti di HLT loop firmware dengan CS=`F000h`; tidak ada far
 jump. Kesalahan emitter saat codegen juga mencegah eksekusi buffer parsial.
+
+## Debug alur kontrol dan relocation
+
+Instruction table dimulai di DS:`0100h`; record berukuran 19 byte dan field
+pentingnya adalah opcode `+0`, operand `+1`, IR source offset `+3`, target
+instruction index `+5`, code offset `+7`, stack input `+9`, dan bitmap local
+input `+11`. Nilai stack `FFFFh` berarti node belum reachable. Label table
+berada pada DS:`1400h` dengan record 7 byte; relocation table mulai DS:`1600h`
+dengan record 6 byte. DS=`6000h`, sehingga alamat fisik tabel masing-masing
+`60100h`, `61400h`, dan `61600h`.
+
+Untuk memeriksa displacement:
+
+```gdb
+x/64bx 0x20000
+x/32bx 0x60100
+x/32bx 0x61600
+```
+
+JMP harus mempunyai byte opcode `E9`, disusul displacement little-endian.
+JZ dimulai `58 85 C0 75 03 E9`; JNZ dimulai `58 85 C0 74 03 E9`. Target
+relatif dihitung dari byte sesudah word displacement. `make test` membandingkan
+seluruh bytes output, menjalankan loop case 41, serta memeriksa hasil HLT
+untuk conditional branching case 42, 43, dan 49.

@@ -10,7 +10,7 @@ code di RAM. Pada error compiler, CPU berhenti pada error loop firmware.
 
 `initialize_segments` memanggil `firmware_main`; `firmware_main` memanggil
 compiler. Setelah far jump, compiler tidak lagi aktif. Label `halt_loop`
-firmware menjadi jalur yang tidak digunakan pada sukses Phase 03; generated
+firmware menjadi jalur yang tidak digunakan pada sukses Phase 04; generated
 runtime mempunyai HLT loop sendiri.
 
 ## Register dan alamat

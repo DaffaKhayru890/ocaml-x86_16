@@ -1,71 +1,88 @@
-# Arsitektur compiler Phase 03
+# Arsitektur compiler Phase 04
 
 ## Ruang lingkup
 
-Firmware Phase 00 tetap menjadi entry point. Setelah stack disiapkan,
-`firmware_main` memanggil compiler yang seluruhnya ditulis dengan Assembly
-16-bit. Compiler menjalankan pass validasi dan pass code generation, lalu
-far jump ke code yang ditulis langsung ke RAM. Tidak ada parser, textual
-Assembly, atau compiler host.
+Compiler ditulis seluruhnya dalam Assembly 16-bit. Setelah firmware
+menyiapkan stack, compiler membaca static IR, menganalisis control-flow graph
+(CFG), menghasilkan instruksi x86 ke RAM, lalu melakukan far jump ke hasil.
+Tidak ada parser, assembler host untuk program runtime, atau OS service.
 
 ```text
 Reset ROM -> firmware -> compiler_main
                          |
-                         +-- Pass 1: reader + dispatcher + stack/local validation
+                         +-- Decode IR -> instruction/label tables
+                         |                -> resolve label/branch
+                         |                -> CFG + stack/local fixed-point
                          |
-                         +-- Emitter self-test terisolasi
+                         +-- Emitter self-test
                          |
-                         +-- Pass 2: baca IR ulang -> codegen -> emit
+                         +-- Emit dari tabel -> label code offsets
+                                              -> relocation rel16
+                                              -> validasi output
                                                       |
-                                                      v
-                                            validasi runtime code
+                                              far jump 2000:0000
                                                       |
-                                             far jump 2000:0000
+                              runtime prologue -> arithmetic/branch -> result
                                                       |
-                                   runtime prologue -> arithmetic -> result
-                                                      |
-                                                  HLT loop
+                                                   HLT loop
 ```
 
-Virtual stack menyimpan nilai 16-bit. ADD, SUB, MUL, NEG, EQ, NE, LT, GT,
-LOAD_LOCAL, dan STORE_LOCAL diterjemahkan langsung ke encoding 8086. Nilai
-akhir disimpan ke `3000:0000`, sedangkan slot lokal menempati `3000:0002`
-sampai `3000:0081`. Branch, label relocation, dan operasi lain yang belum
-didukung ditolak sebelum kode hasil dijalankan.
+IR_LABEL mendeklarasikan ID tanpa menjadi instruksi executable. Target label
+dipetakan ke indeks executable pertama setelah deklarasi. JMP memiliki satu
+successor target; JZ/JNZ memiliki successor target dan fallthrough; instruksi
+biasa memiliki fallthrough; HALT tidak memiliki successor. Branch yang
+reachable tidak boleh jatuh melewati akhir tabel.
 
 ## Register dan alamat
 
 | Register | Penggunaan |
 |---|---|
-| CS | Firmware dan tabel IR di ROM |
-| DS | Work memory pada `6000h` |
-| ES | Output buffer pada `2000h` |
+| CS:SI | Membaca byte IR statis di ROM |
+| DS | State compiler dan tabel pada segment `6000h` |
+| ES:DI | Output code pada segment `2000h` |
 | SS:SP | Stack compiler `5000:FFFE` |
-| SI | Pointer byte IR |
-| DI | Offset output |
-| AX | Byte/word operand dan nilai emitter |
-| CX | Jumlah byte minimum pada pemeriksaan reader |
+| AX | Operand, displacement, dan nilai emitter |
+| BX | Pointer record atau alamat slot |
+| CX | Penghitung tabel/bitmap |
+| DX | Temporary offset/target |
 
-Alamat fisik real mode dihitung `segment * 16 + offset`. Karena DS tidak
-menunjuk ROM, setiap load IR memakai override `[cs:si]`. Output memakai
-`[es:di]`; status hanya ditulis ke RAM pada DS.
+Alamat fisik real mode dihitung `segment * 16 + offset`. Instruction table
+berada pada `6000:0100`, label table pada `6000:1400`, dan relocation table
+pada `6000:1600`; detail field serta physical address ada di
+`memory-map.md`.
 
-## Alur compiler
+## Tahap compiler
 
-1. Muat DS=`6000h`, ES=`2000h`; bersihkan work memory.
-2. Set SI ke `program_ir`, sisa awal ke ukuran header + payload.
-3. Baca empat byte magic, versi, dan panjang payload dengan reader.
-4. Cocokkan panjang deklarasi terhadap panjang byte yang tersisa.
-5. Dispatch opcode sambil memvalidasi stack, slot, dan bitmap; belum ada emission.
-6. Jalankan emitter self-test, lalu reset output buffer.
-7. Reset reader dan stack state; emit runtime prologue dan hasil pass kedua.
-8. Validasi panjang, prologue, terminator, stack, dan halt suffix.
-9. Simpan SUCCESS, lalu far jump ke CS=`2000h`; error berhenti di firmware.
-10. Program hasil menyiapkan DS=`3000h`, SS:SP=`4000:FFFE`, membaca/menulis
-    slot lokal, menyimpan hasil dan menjalankan HLT loop.
+1. `ir_init` dan `ir_validate_header` memvalidasi magic, versi, dan panjang.
+2. `ir_dispatch_opcode` mengambil operand dan memvalidasi opcode.
+   `control_flow_validate_program` menambahkan instruksi executable ke tabel,
+   mencatat label, memvalidasi slot, lalu resolve semua operand branch.
+3. `cfg_analyze_program` menyetel state entry. `dataflow_fixed_point`
+   mempropagasikan kedalaman stack dan bitmap slot initialized pada setiap
+   edge hingga stabil. Kedalaman merge wajib sama; bitmap merge memakai
+   intersection agar local definite-assignment berlaku pada semua jalur.
+4. Setiap HALT reachable harus menerima satu word. Banyak HALT diizinkan;
+   jalur normal yang melewati akhir IR dan CFG tanpa terminal reachable
+   ditolak.
+5. Setelah emitter self-test, pass emission menulis prologue dan melakukan
+   iterasi instruction table. Untuk tiap indeks, semua label terkait
+   memperoleh code offset saat ini.
+6. JMP ditulis sebagai `E9 rel16`. JZ/JNZ mengonsumsi kondisi melalui
+   `POP AX; TEST AX,AX`, memakai conditional short jump pembalik kondisi
+   sepanjang tiga byte, lalu `JMP rel16`.
+7. `relocation_apply_all` menambal little-endian displacement:
+   `target_offset - (patch_offset + 2)`. Compiler baru far jump setelah
+   panjang, kapasitas, prologue, terminator, dan relocation tervalidasi.
+
+## Batas dan pengujian
+
+Kapasitas: 256 instruksi executable, 64 label, 128 relocation, dan output
+4096 byte. Record instruction berukuran 19 byte, label 7 byte, relocation 6
+byte. `make test` menguji arithmetic, local, branch forward/backward,
+conditional, loop, merge valid/invalid, definite assignment, dan error label.
 
 ## Build dan debugging
 
-`make` membangun ROM dan listing. `make test` menguji program arithmetic,
-local, comparison, bitmap, dan fixture error. Peta register dan perintah GDB
-ada di `docs/debugging.md`.
+Jalankan `make` dan `make test`. Status compiler berada di `60000h`; tabel
+dimulai di `60100h`; generated code berada di `20000h`; result runtime di
+`30000h`. Perintah inspeksi memori dan GDB ada di `debugging.md`.
