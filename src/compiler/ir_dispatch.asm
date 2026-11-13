@@ -1,8 +1,8 @@
 ; Membaca opcode berikutnya lalu meneruskan validasi operand.
-; Input: SI menunjuk opcode dan remaining memuat sisa byte IR.
-; Output: opcode tersimpan; CF=0 jika instruksi valid, CF=1 jika gagal.
+; Masukan: SI menunjuk opcode dan remaining memuat sisa byte IR.
+; Keluaran: opcode tersimpan; CF=0 jika instruksi valid, CF=1 jika gagal.
 ; Register berubah: AX, SI, CX, flag.
-; Error: reader atau validator mencatat kode error pada work memory.
+; Kesalahan: pembaca atau validator mencatat kode kesalahan pada memori kerja.
 ir_dispatch_opcode:
     call ir_read_u8
     jc .failed
@@ -16,10 +16,10 @@ ir_dispatch_opcode:
     ret
 
 ; Mengenali opcode, membaca operand yang diwajibkan, dan menghitung instruksi.
-; Input: WORK_CURRENT_OPCODE berisi opcode yang baru dibaca.
-; Output: field operand/ukuran diperbarui; CF=0 jika valid.
+; Masukan: WORK_CURRENT_OPCODE berisi opcode yang baru dibaca.
+; Keluaran: field operand/ukuran diperbarui; CF=0 jika valid.
 ; Register berubah: AX, CX, SI, flag.
-; Error: opcode asing, operand terpotong, atau byte sesudah IR_END.
+; Kesalahan: opcode asing, operand terpotong, atau byte sesudah IR_END.
 ir_validate_instruction:
     cmp byte [ds:WORK_CURRENT_OPCODE], IR_END
     jne .not_end
@@ -100,10 +100,10 @@ ir_validate_instruction:
     ret
 
 ; Memvalidasi payload sampai IR_END atau mencatat kondisi terminasi yang gagal.
-; Input: SI berada di awal payload dan WORK_IR_REMAINING berisi panjangnya.
-; Output: WORK_IR_END_SEEN=1 jika valid; CF=0.
+; Masukan: SI berada di awal payload dan WORK_IR_REMAINING berisi panjangnya.
+; Keluaran: WORK_IR_END_SEEN=1 jika valid; CF=0.
 ; Register berubah: AX, CX, SI, flag.
-; Error: payload habis tanpa IR_END atau salah satu instruksi tidak valid.
+; Kesalahan: payload habis tanpa IR_END atau salah satu instruksi tidak valid.
 ir_validate_program:
 .next_instruction:
     cmp word [ds:WORK_IR_REMAINING], 0
@@ -111,8 +111,12 @@ ir_validate_program:
     call ir_dispatch_opcode
     jc .failed
     cmp byte [ds:WORK_IR_END_SEEN], 1
-    jne .next_instruction
-    clc
+    je .end
+    call codegen_validate_stack
+    jc .failed
+    jmp .next_instruction
+.end:
+    call codegen_validate_end
     ret
 .missing_end:
     mov ax, ERR_MISSING_END

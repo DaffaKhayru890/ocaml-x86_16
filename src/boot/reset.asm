@@ -1,4 +1,4 @@
-; Entry point menerima kendali dari far jump pada reset vector.
+; Titik masuk menerima kendali dari far jump pada vektor reset.
 firmware_entry:
     cli
     cld

@@ -1,0 +1,23 @@
+; Byte opcode dan operand tetap untuk instruksi runtime 8086.
+MC_CLI                  equ 0xFA
+MC_MOV_AX_IMM16         equ 0xB8
+MC_MOV_DS_AX            equ 0x8E
+MC_MODRM_MOV_DS_AX      equ 0xD8
+MC_MOV_SS_AX            equ 0x8E
+MC_MODRM_MOV_SS_AX      equ 0xD0
+MC_MOV_SP_IMM16         equ 0xBC
+MC_PUSH_AX              equ 0x50
+MC_POP_AX               equ 0x58
+MC_POP_BX               equ 0x5B
+MC_ADD_AX_BX            equ 0x01
+MC_MODRM_ADD_AX_BX      equ 0xD8
+MC_SUB_AX_BX            equ 0x29
+MC_MODRM_SUB_AX_BX      equ 0xD8
+MC_IMUL_BX              equ 0xF7
+MC_MODRM_IMUL_BX        equ 0xEB
+MC_NEG_AX               equ 0xF7
+MC_MODRM_NEG_AX         equ 0xD8
+MC_MOV_MOFFS_AX         equ 0xA3
+MC_HLT                  equ 0xF4
+MC_JMP_SHORT            equ 0xEB
+MC_JMP_SHORT_BACK_3     equ 0xFD

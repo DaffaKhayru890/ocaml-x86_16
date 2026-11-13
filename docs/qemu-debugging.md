@@ -56,9 +56,9 @@ far jump.
 
 Untuk pemeriksaan breakpoint dengan simbol, bangun listing/simbol terpisah
 atau pasang breakpoint alamat entry setelah far jump (`0xf0000`). Tanpa
-simbol debug, gunakan `stepi` dan inspeksi disassembly. Register yang diperiksa pada firmware entry meliputi CS, IP/EIP, DS, ES, SS,
-SP/ESP. Sesudah compiler berjalan, DS=`6000`, ES=`2000`, SS=`5000`, SP
-`FFFE`; SI menunjuk akhir IR dan DI bernilai lima. Status, error, serta output
+simbol debug, gunakan `stepi` dan inspeksi disassembly. Sebelum codegen transfer kontrol, DS=`6000`, ES=`2000`, SS=`5000`, SP
+`FFFE`; SI menunjuk IR dan DI menunjuk output. Setelah far jump runtime,
+CS=`2000`, DS=`3000`, SS=`4000`, SP kembali `FFFE`. Status, output, dan hasil
 dijelaskan rinci pada `docs/debugging.md`.
 
 ## Perilaku HLT
@@ -69,6 +69,14 @@ CPU dan tidak ada handler NMI yang disiapkan.
 
 ## Hasil aktual
 
-Catat hasil build serta inspeksi QEMU/GDB yang benar-benar dijalankan saat
-validasi. Keberadaan perintah dan dokumentasi bukan bukti bahwa QEMU/GDB
-berhasil dijalankan; jangan menandai tes runtime berhasil tanpa observasi.
+Validasi Linux: NASM menghasilkan ROM 65536 byte dan reset vector
+`EA 00 00 00 F0`. `make test` lulus untuk 11 program arithmetic dan 17
+fixture error. Melalui GDB, CPU berhenti pada `CS:F000 EIP:FFF0`, lima byte
+di `FFFFFFF0h` cocok, dan satu `stepi` mencapai `F000:0000`. Breakpoint
+hardware pada `2000:0028` berhenti tepat di instruksi HLT program default;
+register saat itu `CS=2000`, `DS=3000`, `ES=2000`, `SS=4000`,
+`SP=FFFE`, `EAX=0024`, dan panjang code `DI=002B`. RAM `20000h` memuat
+43 byte code dan word hasil pada `30000h` adalah `0024`. Pengujian QEMU HMP
+terpisah mengamati `HLT=1` untuk program arithmetic dan jalur error.
+
+Windows belum diuji.

@@ -1,4 +1,4 @@
-; Firmware memanggil compiler Phase 01 setelah stack siap.
+; Firmware memanggil compiler Phase 02 setelah stack siap.
 firmware_main:
     call compiler_main
     ret

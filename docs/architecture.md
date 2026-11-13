@@ -22,12 +22,13 @@ firmware_main
         v
 compiler_main
         |
-        +--> Reader -> Dispatcher -> validasi IR
+        +--> Pass 1: Reader -> Dispatcher -> validasi IR dan virtual stack
         |
-        +--> Self-test emitter -> RAM 2000:0000
+        +--> Emitter self-test terisolasi
         |
-        v
-halt_loop (HLT / JMP)
+        +--> Pass 2: codegen -> output RAM 2000:0000
+        |
+        +--> validasi code -> far jump 2000:0000 -> runtime -> HLT
 ```
 
 Perintah `qemu-system-i386 -machine pc -bios ...` memuat firmware yang
@@ -54,7 +55,14 @@ instruksi far jump lima byte pada offset `FFF0h`, lalu padding akhir
 menghasilkan panjang tepat `10000h`. `ORG` tidak memetakan ROM ke alamat
 fisik dan tidak menambahkan prefix ke file.
 
-Sesudah inisialisasi stack Phase 00, firmware menjalankan compiler Phase 01.
-Compiler menggunakan DS=`6000h` untuk state, ES=`2000h` untuk output, dan
-CS override untuk membaca IR dari ROM. Ia hanya memvalidasi opcode/operand;
-emitter diuji lewat jalur terpisah dan byte hasilnya tidak dieksekusi.
+Sesudah inisialisasi stack Phase 00, firmware menjalankan compiler Phase 02.
+Pass pertama menggunakan DS=`6000h` untuk state dan CS override untuk
+membaca/validasi IR tanpa output. Self-test emitter dijalankan secara
+terpisah. Pass kedua mengulang IR dan mengeluarkan instruksi dengan ES=`2000h`.
+Compiler memvalidasi bentuk code sebelum far jump. Generated code menyiapkan
+DS=`3000h` dan SS:SP=`4000:FFFE`, menghitung hasil di CPU, menyimpan word
+hasil ke `3000:0000`, lalu memasuki HLT loop.
+
+Dokumen detail: `compiler-architecture.md`, `code-generation.md`,
+`stack-machine.md`, `arithmetic.md`, `machine-code-reference.md`, `runtime.md`,
+dan `debugging.md`.

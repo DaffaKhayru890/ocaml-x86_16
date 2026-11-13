@@ -1,8 +1,8 @@
 ; Mengatur pointer IR dan batas awal yang mencakup header serta payload.
-; Input: DS menunjuk work memory.
-; Output: SI=program_ir, remaining=ukuran tabel IR.
+; Masukan: DS menunjuk work memory.
+; Keluaran: SI=program_ir, remaining=ukuran tabel IR.
 ; Register berubah: SI.
-; Error: tidak ada.
+; Kesalahan: tidak ada.
 ir_init:
     mov si, program_ir
     mov word [ds:WORK_IR_REMAINING], program_ir_end - program_ir
@@ -12,10 +12,10 @@ ir_init:
     ret
 
 ; Memastikan jumlah byte yang diminta masih tersedia.
-; Input: CX adalah jumlah byte minimum.
-; Output: CF=0 jika cukup, CF=1 dan status error jika tidak cukup.
+; Masukan: CX adalah jumlah byte minimum.
+; Keluaran: CF=0 jika cukup, CF=1 dan status error jika tidak cukup.
 ; Register berubah: AX pada error dan flag; CX dipertahankan.
-; Error: kekurangan data mencatat ERR_UNEXPECTED_EOF.
+; Kesalahan: kekurangan data mencatat ERR_UNEXPECTED_EOF.
 ir_check_remaining:
     cmp word [ds:WORK_IR_REMAINING], cx
     jae .available
@@ -27,10 +27,10 @@ ir_check_remaining:
     ret
 
 ; Membaca satu byte dari CS:SI dan mengurangi sisa payload.
-; Input: SI menunjuk byte berikutnya.
-; Output: AL=byte, CF=0; saat gagal CF=1.
+; Masukan: SI menunjuk byte berikutnya.
+; Keluaran: AL=byte, CF=0; saat gagal CF=1.
 ; Register berubah: SI, AX, CX, flag.
-; Error: remaining nol mencatat ERR_UNEXPECTED_EOF tanpa mengubah SI.
+; Kesalahan: remaining nol mencatat ERR_UNEXPECTED_EOF tanpa mengubah SI.
 ir_read_u8:
     mov cx, 1
     call ir_check_remaining
@@ -45,10 +45,10 @@ ir_read_u8:
     ret
 
 ; Membaca word little-endian dari CS:SI secara atomik.
-; Input: SI menunjuk byte terendah, remaining minimal dua.
-; Output: AX=word, CF=0; saat gagal CF=1.
+; Masukan: SI menunjuk byte terendah, remaining minimal dua.
+; Keluaran: AX=word, CF=0; saat gagal CF=1.
 ; Register berubah: SI, AX, CX, flag.
-; Error: remaining kurang dari dua mencatat ERR_UNEXPECTED_EOF tanpa membaca.
+; Kesalahan: remaining kurang dari dua mencatat ERR_UNEXPECTED_EOF tanpa membaca.
 ir_read_u16:
     mov cx, 2
     call ir_check_remaining
@@ -63,10 +63,10 @@ ir_read_u16:
     ret
 
 ; Memeriksa magic, versi, dan panjang header sebelum dispatch payload.
-; Input: SI dan remaining disiapkan oleh ir_init.
-; Output: SI menunjuk payload, remaining sama dengan panjang payload.
+; Masukan: SI dan remaining disiapkan oleh ir_init.
+; Keluaran: SI menunjuk payload, remaining sama dengan panjang payload.
 ; Register berubah: AX, CX, SI, flag.
-; Error: magic, versi, panjang, atau header terpotong mencatat kode terkait.
+; Kesalahan: magic, versi, panjang, atau header terpotong mencatat kode terkait.
 ir_validate_header:
     call ir_read_u8
     jc .failed

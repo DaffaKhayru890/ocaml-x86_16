@@ -1,18 +1,18 @@
-; Menyetel output buffer untuk self-test emitter.
-; Input: ES menunjuk OUTPUT_SEGMENT.
-; Output: DI dan WORK_EMIT_LENGTH bernilai nol.
+; Menyetel buffer keluaran untuk uji mandiri emitter.
+; Masukan: ES menunjuk OUTPUT_SEGMENT.
+; Keluaran: DI dan WORK_EMIT_LENGTH bernilai nol.
 ; Register berubah: DI.
-; Error: tidak ada.
+; Kesalahan: tidak ada.
 emitter_init:
     xor di, di
     mov word [ds:WORK_EMIT_LENGTH], 0
     ret
 
 ; Menulis AL ke ES:DI jika masih ada ruang.
-; Input: AL adalah byte yang akan ditulis.
-; Output: byte tersimpan, DI dan panjang bertambah; CF=0.
+; Masukan: AL adalah byte yang akan ditulis.
+; Keluaran: byte tersimpan, DI dan panjang bertambah; CF=0.
 ; Register berubah: DI, flag; AX/BX/CX/DX dipertahankan.
-; Error: kapasitas penuh mencatat ERR_OUTPUT_OVERFLOW, DI tidak berubah, CF=1.
+; Kesalahan: kapasitas penuh mencatat ERR_OUTPUT_OVERFLOW, DI tidak berubah, CF=1.
 emit8:
     cmp di, OUTPUT_CAPACITY
     jae .overflow
@@ -29,10 +29,10 @@ emit8:
     ret
 
 ; Menulis AX dalam urutan little-endian hanya jika dua byte tersedia.
-; Input: AX adalah word yang akan ditulis.
-; Output: dua byte tersimpan, DI dan panjang bertambah dua; CF=0.
+; Masukan: AX adalah word yang akan ditulis.
+; Keluaran: dua byte tersimpan, DI dan panjang bertambah dua; CF=0.
 ; Register berubah: DI, flag; AX/BX/CX/DX dipertahankan.
-; Error: ruang kurang dari dua byte mencatat overflow tanpa penulisan parsial.
+; Kesalahan: ruang kurang dari dua byte mencatat overflow tanpa penulisan parsial.
 emit16:
     cmp di, OUTPUT_CAPACITY - 2
     ja .overflow

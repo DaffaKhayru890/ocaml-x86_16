@@ -4,7 +4,8 @@
 
 Emitter menulis byte langsung ke RAM. Ia menerima nilai register dan
 menyimpan representasi little-endian pada output buffer; ia tidak membuat
-teks Assembly dan tidak mengubah IR menjadi code generation.
+teks Assembly. Codegen memanggil emitter untuk menerjemahkan IR yang telah
+divalidasi menjadi byte instruksi.
 
 ## Prosedur dan kontrak
 
@@ -25,10 +26,11 @@ dipertahankan; AX dipertahankan termasuk pada jalur error.
 byte, menguji byte terakhir buffer, satu byte berlebih, serta `emit16`
 dengan ruang satu byte. Overflow yang sengaja dipicu hanya ditangkap dan
 dibersihkan oleh tes terisolasi; kegagalan tak terduga diteruskan ke error
-loop. Tidak ada generated code yang dijalankan.
+loop. Setelah self-test, codegen mengatur DI dan panjang kembali nol,
+sehingga byte test terpisah dari program yang kemudian dijalankan.
 
 ## Build dan debugging
 
-Build dengan `make`, jalankan pengujian dengan `make test`. Output berada di
-`ES:0000` (`2000:0000`, alamat fisik `20000h`), panjangnya di
+Build dengan `make`, jalankan pengujian dengan `make test`. Output program
+berada di `ES:0000` (`2000:0000`, alamat fisik `20000h`), panjangnya di
 `WORK_EMIT_LENGTH` pada alamat fisik `6000Ah`.

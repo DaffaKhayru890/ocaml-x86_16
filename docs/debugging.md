@@ -1,21 +1,19 @@
-# Debugging compiler Phase 01
+# Debugging compiler dan runtime Phase 02
 
-## Jalankan
-
-Build dan tes:
+## Jalankan build dan tes
 
 ```sh
 make
 make test
 ```
 
-Jalankan ROM berhenti sebelum instruksi pertama:
+`make test` merakit ROM untuk setiap fixture, menjalankannya di QEMU dengan
+monitor HMP lokal, lalu memeriksa register dan RAM. Build membuat listing
+`build/custom_rom.lst` untuk menghubungkan offset instruksi dengan source.
 
-```sh
-./scripts/run-qemu.sh
-```
+## Debug firmware/compiler dengan GDB
 
-Hubungkan GDB:
+Jalankan `scripts/run-qemu.sh`, kemudian:
 
 ```gdb
 set architecture i386
@@ -23,71 +21,66 @@ target remote :1234
 info registers
 x/5bx 0xfffffff0
 stepi
-info registers
 ```
 
-Byte reset vector seharusnya `ea 00 00 00 f0`; far jump mencapai `CS:IP =
-F000:0000`. Untuk breakpoint setelah far jump, gunakan offset label dari
-`build/custom_rom.lst` dan alamat linear alias `0xF0000 + offset`. Sesudah
-breakpoint, `continue` menuju HLT bisa menunggu tanpa batas karena HLT
-memang menidurkan CPU. Jika perlu menginspeksi state akhir secara mudah,
-jalankan QEMU tanpa `-S` dengan HMP monitor aktif lalu gunakan `info
-registers` dan `xp`.
+Reset vector harus berisi `EA 00 00 00 F0`; single-step far jump menuju
+`F000:0000`. Untuk berhenti di titik compiler/runtime gunakan offset label
+dari listing. Far jump ke generated code terjadi hanya setelah seluruh
+validasi lulus.
 
-Pada build saat ini, `halt_loop` berada pada offset `001Ch`, sehingga
-breakpoint dapat dipasang sebelum melanjutkan dari reset:
+## Register dan alamat akhir
+
+Sebelum compiler transfer kontrol: CS=`F000h`, DS=`6000h`, ES=`2000h`,
+SS:SP=`5000:FFFE`. Ketika generated program mencapai HLT:
+
+- CS=`2000h`, DS=`3000h`, ES=`2000h`, SS:SP=`4000:FFFE`.
+- EIP berada tepat setelah HLT pada akhir buffer.
+- HLT flag aktif; jalur program tidak kembali ke compiler.
+- Status compiler tetap di alamat fisik `60000h`; sukses=`0002h`.
+- SI menunjuk akhir IR, DI dan `WORK_EMIT_LENGTH` memuat code length.
+- `WORK_STACK_DEPTH=0`; `WORK_MAX_STACK_DEPTH` mencatat puncak compile-time.
+
+Periksa status, stack, dan hasil:
 
 ```gdb
-break *0xf001c
-continue
-info registers cs eip ds es ss esp si di
-x/22bx 0x60000
-x/5bx 0x20000
+x/31bx 0x60000
+x/64bx 0x20000
+x/hx 0x30000
 ```
 
-Listing dapat berubah jika kode berubah; gunakan offset `halt_loop` yang
-tertera di listing build terbaru.
+QEMU HMP dapat memakai perintah `info registers`, `xp /64bx 0x20000`, dan
+`xp /1hx 0x30000`. Nilai hasil adalah word little-endian; contoh hasil 36
+tersimpan sebagai `24 00`. Nilai negatif memakai two's complement, misalnya
+-14 adalah `F2 FF` dan dapat dibaca sebagai `FFFEh` serta ditafsirkan signed
+`-14`.
 
-## Register dan memori
+## Generated code
 
-Pada jalur sukses yang sudah selesai:
+Codegen default `(7+5)*3` menghasilkan 43 byte:
 
-- CS=`F000h`, DS=`6000h`, ES=`2000h`, SS=`5000h`.
-- SI menunjuk akhir tabel IR; remaining di `60004h` bernilai nol.
-- DI bernilai lima; panjang output di `6000Ah` bernilai lima.
-- Status pada `60000h` bernilai `0002h` (SUCCESS); error `60002h` nol.
-- Output berada di alamat fisik `20000h` dan harus `B8 34 12 50 58`.
-
-Perintah GDB untuk memeriksa buffer/status:
-
-```gdb
-x/22bx 0x60000
-x/5bx 0x20000
+```text
+FA B8 00 30 8E D8 B8 00 40 8E D0 BC FE FF
+B8 07 00 50 B8 05 00 50 5B 58 01 D8 50
+B8 03 00 50 5B 58 F7 EB 50
+58 A3 00 00 F4 EB FD
 ```
 
-QEMU HMP dapat membaca alamat fisik secara langsung, contohnya
-`xp /5bx 0x20000` dan `xp /22bx 0x60000`. `make test` menjalankan monitor
-otomatis untuk memeriksa status success/error, HLT, panjang IR, dan output.
-Tidak ada output BIOS atau OS.
+Output berada di RAM fisik `20000h`; code dieksekusi langsung dengan
+`CS:IP=2000:0000`. Tidak ada file machine-code host atau BIOS output.
 
-## Kode status dan error
-
-`WORK_STATUS=0002h` berarti sukses; `FFFFh` berarti error. Kode error:
+## Kode error
 
 | Kode | Arti |
 |---:|---|
-| `0001h` | Magic tidak valid |
-| `0002h` | Versi tidak didukung |
-| `0003h` | Panjang payload salah |
-| `0004h` | Operand/IR berakhir sebelum waktunya |
-| `0005h` | Opcode tidak dikenal |
-| `0006h` | IR_END hilang |
-| `0007h` | Ada data setelah IR_END |
-| `0008h` | Output overflow |
-| `0009h` | Self-test emitter gagal |
+| `0001h–0009h` | Error header/IR/emitter dari Phase 01 |
+| `000Ah` | Stack underflow |
+| `000Bh` | Virtual stack overflow |
+| `000Ch` | Final stack depth bukan satu |
+| `000Dh` | Opcode dikenal tetapi belum didukung |
+| `000Eh` | Code generation gagal |
+| `000Fh` | Runtime generated code tidak valid |
+| `0010h` | Program kosong atau HALT tanpa hasil |
+| `0011h` | HALT bukan instruksi semantik terakhir |
 
-## Listing assembler
-
-Build menghasilkan `build/custom_rom.lst`, yang menghubungkan source dan
-offset machine code untuk mencari alamat breakpoint. Binary ROM tetap tepat
-65536 byte dan reset vector tetap diperiksa oleh build script.
+Error compiler berhenti di HLT loop firmware dengan CS=`F000h`; tidak ada far
+jump. Kesalahan emitter saat codegen juga mencegah eksekusi buffer parsial.

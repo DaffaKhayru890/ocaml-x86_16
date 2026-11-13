@@ -1,20 +1,20 @@
-; Header dan static IR yang dibaca melalui CS:SI pada Phase 01.
+; Header dan IR statis yang dibaca melalui CS:SI oleh compiler.
 %ifndef IR_TEST_CASE
     %define IR_TEST_CASE 0
 %endif
 
 program_ir:
-%if IR_TEST_CASE = 1
+%if IR_TEST_CASE = 101
     db 'X', 'R', '1', '6'
 %else
     db 'I', 'R', '1', '6'
 %endif
-%if IR_TEST_CASE = 2
+%if IR_TEST_CASE = 102
     db IR_VERSION + 1
 %else
     db IR_VERSION
 %endif
-%if IR_TEST_CASE = 3
+%if IR_TEST_CASE = 103
     dw program_ir_end - program_ir_payload - 1
 %else
     dw program_ir_end - program_ir_payload
@@ -23,32 +23,16 @@ program_ir:
 program_ir_payload:
 %if IR_TEST_CASE = 0
     db IR_ICONST
-    dw 42
-    db IR_STORE_LOCAL
-    db 0
-    db IR_LOAD_LOCAL
-    db 0
+    dw 7
     db IR_ICONST
-    dw 10
+    dw 5
     db IR_ADD
-    db IR_SUB
+    db IR_ICONST
+    dw 3
     db IR_MUL
-    db IR_NEG
-    db IR_EQ
-    db IR_NE
-    db IR_LT
-    db IR_GT
-    db IR_LABEL
-    dw 1
-    db IR_JMP
-    dw 1
-    db IR_JZ
-    dw 1
-    db IR_JNZ
-    dw 1
     db IR_HALT
     db IR_END
 %else
-    %include "tests/ir/ir_fixtures.asm"
+    %include "tests/runtime/program-fixtures.asm"
 %endif
 program_ir_end:

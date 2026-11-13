@@ -1,10 +1,9 @@
 # Machine Code Emitter
 
-Emitter adalah primitive byte-to-RAM, bukan code generator. `emit8`
+Emitter adalah primitive byte-to-RAM yang dipakai code generator. `emit8`
 menerima AL, sedangkan `emit16` menerima AX dan menulis representasi
 little-endian. Keduanya menulis melalui ES:DI serta memperbarui panjang di
-work memory. Tidak ada textual Assembly atau penggunaan assembler saat
-runtime.
+work memory. Tidak ada textual Assembly atau assembler host saat runtime.
 
 | Prosedur | Input | Sukses | Error |
 |---|---|---|---|
@@ -16,10 +15,12 @@ AX dipertahankan oleh emitter, termasuk pada jalur overflow; DI berubah hanya
 ketika berhasil. Register umum lain dipertahankan. Status/error berada pada
 DS:WORK dan panjang output adalah `WORK_EMIT_LENGTH`.
 
-Self-test terpisah menulis `B8 34 12 50 58`, yang *sebagai data* merupakan
-encoding `mov ax,1234h; push ax; pop ax`. Tes membandingkan byte, mengisi
-byte terakhir buffer, menguji byte berlebih, serta memastikan emit16 gagal
-tanpa menulis parsial saat hanya satu byte tersisa. Tidak satu pun byte
-tersebut dijalankan.
+Self-test terpisah Phase 01 menulis `B8 34 12 50 58` dan menguji batas
+buffer. Phase 02 menjalankannya sebelum pass kedua, lalu mereset DI dan
+panjang output agar self-test tidak masuk ke generated program. Codegen
+menggunakan emitter untuk setiap opcode runtime dan tidak melanjutkan saat
+CF menandakan overflow.
 
-Lihat `docs/output-buffer.md` untuk batas kapasitas dan alamat.
+Machine bytes kemudian diverifikasi dan dijalankan dari RAM hanya setelah
+kedua pass valid. Lihat `docs/output-buffer.md` untuk batas kapasitas dan
+alamat.

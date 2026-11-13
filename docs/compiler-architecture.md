@@ -1,30 +1,36 @@
-# Arsitektur compiler Phase 01
+# Arsitektur compiler Phase 02
 
 ## Ruang lingkup
 
 Firmware Phase 00 tetap menjadi entry point. Setelah stack disiapkan,
 `firmware_main` memanggil compiler yang seluruhnya ditulis dengan Assembly
-16-bit. Compiler membaca tabel IR statis di ROM, memvalidasi format dan
-operand, lalu menjalankan tes emitter mandiri. Kedua jalur belum menjadi
-pipeline code generation.
+16-bit. Compiler menjalankan pass validasi dan pass code generation, lalu
+far jump ke code yang ditulis langsung ke RAM. Tidak ada parser, textual
+Assembly, atau compiler host.
 
 ```text
-Reset ROM -> Inisialisasi segmen/stack -> compiler_main
-                                      |
-                    +----------------+----------------+
-                    |                                 |
-                 IR reader                      Emitter test
-                    |                                 |
-              IR dispatcher                     emit8/emit16
-                    |                                 |
-            Status dan error                    RAM: 2000:0000
-                    +---------------+-----------------+
-                                    |
-                              HLT success/error
+Reset ROM -> firmware -> compiler_main
+                         |
+                         +-- Pass 1: reader + dispatcher + stack validation
+                         |
+                         +-- Emitter self-test terisolasi
+                         |
+                         +-- Pass 2: baca IR ulang -> codegen -> emit
+                                                      |
+                                                      v
+                                            validasi runtime code
+                                                      |
+                                             far jump 2000:0000
+                                                      |
+                                   runtime prologue -> arithmetic -> result
+                                                      |
+                                                  HLT loop
 ```
 
-IR_ADD dan opcode lainnya hanya dikenali; tidak ada operasi aritmetika,
-penerjemahan, label resolution, atau eksekusi data hasil emitter.
+Virtual stack menyimpan nilai signed 16-bit. ADD, SUB, MUL, dan NEG
+diterjemahkan langsung ke encoding 8086. Nilai akhir disimpan ke `3000:0000`.
+Branch, local variable, comparison, label relocation, dan operasi lain yang
+belum didukung ditolak sebelum generated code dijalankan.
 
 ## Register dan alamat
 
@@ -49,12 +55,16 @@ menunjuk ROM, setiap load IR memakai override `[cs:si]`. Output memakai
 2. Set SI ke `program_ir`, sisa awal ke ukuran header + payload.
 3. Baca empat byte magic, versi, dan panjang payload dengan reader.
 4. Cocokkan panjang deklarasi terhadap panjang byte yang tersisa.
-5. Dispatch opcode sampai IR_END; validasi operand dan terminator.
-6. Jalankan emitter self-test terpisah dan tes batas buffer.
-7. Simpan SUCCESS atau ERROR; kegagalan berhenti di HLT loop.
+5. Dispatch opcode sambil memvalidasi efek stack; belum ada code emission.
+6. Jalankan emitter self-test, lalu reset output buffer.
+7. Reset reader dan stack state; emit runtime prologue dan hasil pass kedua.
+8. Validasi panjang, prologue, terminator, stack, dan halt suffix.
+9. Simpan SUCCESS, lalu far jump ke CS=`2000h`; error berhenti di firmware.
+10. Generated program menyiapkan DS=`3000h`, SS:SP=`4000:FFFE`, menyimpan
+    hasil dan menjalankan HLT loop.
 
 ## Build dan debugging
 
-`make` membangun ROM dan listing. `make test` menguji satu IR valid dan tujuh
-fixture error dengan QEMU. Peta register dan perintah GDB ada di
-`docs/debugging.md`.
+`make` membangun ROM dan listing. `make test` menguji 11 program arithmetic
+dan fixture validasi, stack, serta overflow. Peta register dan perintah GDB
+ada di `docs/debugging.md`.

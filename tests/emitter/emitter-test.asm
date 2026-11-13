@@ -1,8 +1,8 @@
 ; Menulis urutan byte tetap untuk menguji emit8 dan emit16 tanpa IR.
-; Input: DS menunjuk work memory dan ES menunjuk output buffer.
-; Output: B8 34 12 50 58 di ES:0000; CF=0 jika tes selesai.
+; Masukan: DS menunjuk memori kerja dan ES menunjuk buffer keluaran.
+; Keluaran: B8 34 12 50 58 di ES:0000; CF=0 jika tes selesai.
 ; Register berubah: AX, DI, flag.
-; Error: kegagalan emit atau verifikasi mencatat ERR_EMITTER_TEST_FAILED.
+; Kesalahan: kegagalan penulisan atau verifikasi mencatat ERR_EMITTER_TEST_FAILED.
 emitter_self_test:
     call emitter_init
     mov al, 0xB8
@@ -36,10 +36,10 @@ emitter_self_test:
     ret
 
 ; Membandingkan hasil emitter dengan lima byte yang diharapkan.
-; Input: ES:0000 berisi hasil self-test dan WORK_EMIT_LENGTH bernilai lima.
-; Output: CF=0 jika seluruh byte sama.
+; Masukan: ES:0000 berisi hasil uji mandiri dan WORK_EMIT_LENGTH bernilai lima.
+; Keluaran: CF=0 jika seluruh byte sama.
 ; Register berubah: AX, flag.
-; Error: ketidakcocokan mencatat ERR_EMITTER_TEST_FAILED.
+; Kesalahan: ketidakcocokan mencatat ERR_EMITTER_TEST_FAILED.
 emitter_verify_test:
     cmp word [ds:WORK_EMIT_LENGTH], 5
     je .length_valid
@@ -73,10 +73,10 @@ emitter_verify_test:
     ret
 
 ; Menguji byte terakhir buffer, satu byte berlebih, dan emit16 yang hanya muat satu byte.
-; Input: emitter_self_test telah mengisi dan memverifikasi lima byte awal.
-; Output: lima byte awal dan panjangnya dipertahankan; CF=0 jika tes lulus.
+; Masukan: emitter_self_test telah mengisi dan memverifikasi lima byte awal.
+; Keluaran: lima byte awal dan panjangnya dipertahankan; CF=0 jika tes lulus.
 ; Register berubah: AX, DI, flag.
-; Error: kondisi uji yang gagal mencatat ERR_EMITTER_TEST_FAILED.
+; Kesalahan: kondisi uji yang gagal mencatat ERR_EMITTER_TEST_FAILED.
 emitter_overflow_test:
     mov di, OUTPUT_CAPACITY - 1
     mov al, 0xA5

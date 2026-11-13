@@ -10,10 +10,11 @@ memeriksa `DI <= kapasitas-2` sebelum store word. Karena itu kasus satu byte
 tersisa tidak dapat menulis byte low terlebih dahulu lalu gagal pada byte
 high. Panjang berubah hanya sesudah penulisan lengkap.
 
-Self-test memakai offset di luar kapasitas sebagai sentinel uji pada RAM
-QEMU, tetapi sentinel itu bukan bagian dari buffer yang diizinkan. Tes
+self-test Phase 01 memakai offset di luar kapasitas sebagai sentinel uji pada
+RAM QEMU, tetapi sentinel itu bukan bagian dari buffer yang diizinkan. Tes
 memastikan byte sentinel dan byte terakhir tidak berubah pada jalur overflow.
-Panjang output akhir kembali menjadi lima byte.
+Sesudah tes, codegen mengatur DI dan panjang kembali nol sebelum menghasilkan
+runtime prologue dan program.
 
 Work memory compiler adalah segment DS=`6000h`; field penting:
 
@@ -30,8 +31,10 @@ Work memory compiler adalah segment DS=`6000h`; field penting:
 Di GDB, setelah CPU mencapai loop HLT, baca:
 
 ```gdb
-x/16bx 0x20000
-x/22bx 0x60000
+x/64bx 0x20000
+x/31bx 0x60000
+x/hx 0x30000
 ```
 
-Lima byte yang diharapkan di output adalah `b8 34 12 50 58`.
+Untuk program `(7+5)*3`, output machine code berukuran 43 byte dan hasil
+`0024h` disimpan di `30000h`.
