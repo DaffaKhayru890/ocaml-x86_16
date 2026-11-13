@@ -1,0 +1,6 @@
+; Segment dan ukuran region memori untuk Phase 00 dan phase selanjutnya.
+FIRMWARE_BASE_SEGMENT   equ 0xF000
+COMPILER_STACK_SEGMENT  equ 0x5000
+GENERATED_CODE_SEGMENT  equ 0x2000
+RUNTIME_DATA_SEGMENT    equ 0x3000
+RUNTIME_STACK_SEGMENT   equ 0x4000

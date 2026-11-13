@@ -1,0 +1,21 @@
+# Proses boot
+
+1. QEMU membuat machine `pc` dan memasang `build/custom_rom.bin` melalui
+   opsi `-bios`, menggantikan ROM firmware default.
+2. CPU mulai fetch dari alamat fisik `FFFFFFF0h`, offset `FFF0h` di dalam
+   mapping ROM atas.
+3. Byte reset vector menjalankan far jump `F000:0000`. Machine PC QEMU
+   menyediakan alias firmware pada rentang `F0000h–FFFFFh`.
+4. `firmware_entry` menonaktifkan IRQ maskable dengan CLI dan menghapus DF
+   dengan CLD. Ia belum memakai stack.
+5. `initialize_segments` mengatur DS/ES ke `F000h`, SS ke `5000h`, dan SP ke
+   `FFFEh`. Setelah itu CALL/RET aman.
+6. `firmware_main` segera kembali. Firmware memasuki loop HLT/JMP.
+
+Tidak ada BIOS interrupt, syscall, atau layanan OS. Tidak ada IDT/handler
+interrupt yang dipasang. IF tetap nol; NMI bukan IRQ maskable dan masih
+dapat membangunkan HLT. Perangkat virtual tidak dikonfigurasi untuk menjadi
+bagian dari antarmuka firmware.
+
+Reset vector 8086 klasik berada di alamat fisik `FFFF0h` melalui
+`FFFF:0000`, berbeda dari reset PC modern QEMU yang dituju di sini.
