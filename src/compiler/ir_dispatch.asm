@@ -105,6 +105,11 @@ ir_validate_instruction:
 ; Register berubah: AX, CX, SI, flag.
 ; Kesalahan: payload habis tanpa IR_END atau salah satu instruksi tidak valid.
 ir_validate_program:
+    call clear_local_init_bitmap
+    mov word [ds:WORK_STACK_DEPTH], 0
+    mov word [ds:WORK_MAX_STACK_DEPTH], 0
+    mov word [ds:WORK_STACK_ERROR], 0
+    mov byte [ds:WORK_IR_HALT_SEEN], 0
 .next_instruction:
     cmp word [ds:WORK_IR_REMAINING], 0
     je .missing_end

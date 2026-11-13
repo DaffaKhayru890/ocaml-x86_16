@@ -70,13 +70,15 @@ CPU dan tidak ada handler NMI yang disiapkan.
 ## Hasil aktual
 
 Validasi Linux: NASM menghasilkan ROM 65536 byte dan reset vector
-`EA 00 00 00 F0`. `make test` lulus untuk 11 program arithmetic dan 17
-fixture error. Melalui GDB, CPU berhenti pada `CS:F000 EIP:FFF0`, lima byte
-di `FFFFFFF0h` cocok, dan satu `stepi` mencapai `F000:0000`. Breakpoint
-hardware pada `2000:0028` berhenti tepat di instruksi HLT program default;
-register saat itu `CS=2000`, `DS=3000`, `ES=2000`, `SS=4000`,
-`SP=FFFE`, `EAX=0024`, dan panjang code `DI=002B`. RAM `20000h` memuat
-43 byte code dan word hasil pada `30000h` adalah `0024`. Pengujian QEMU HMP
-terpisah mengamati `HLT=1` untuk program arithmetic dan jalur error.
+`EA 00 00 00 F0`. `make test` lulus untuk 29 program dan 21 fixture error.
+Melalui GDB, CPU berhenti pada `CS:F000 EIP:FFF0`, lima byte di
+`FFFFFFF0h` cocok, dan satu `stepi` mencapai `F000:0000`. Untuk program 36
+(dua local lalu LT), breakpoint hardware pada `2000:0037` berhenti tepat di
+instruksi HLT. Register saat itu `CS=2000`, `DS=3000`, `ES=2000`,
+`SS=4000`, `SP=FFFE`, `EAX=0001`; hasil `30000h=0001`, slot 0 dan 1
+masing-masing `000A` dan `0014`, bitmap di `60020h` dimulai `03`.
+Generated code berukuran 58 byte dan mencakup `CMP AX,BX; JGE +3`.
+Pengujian QEMU HMP juga mengamati `HLT=1` pada seluruh program dan jalur
+error.
 
 Windows belum diuji.

@@ -12,10 +12,12 @@ tambahan di area alamat reset tinggi yang disediakan oleh QEMU PC.
 | Region | Segment | Offset awal | Offset akhir | Alamat fisik | Ukuran | Fungsi |
 |---|---:|---:|---:|---:|---:|---|
 | Generated code | `2000h` | `0000h` | `0FFFh` | `20000h–20FFFh` | 4 KiB | Output compiler dan code yang dieksekusi |
-| Runtime data | `3000h` | `0000h` | `FFFFh` | `30000h–3FFFFh` | 64 KiB | Hasil program di `3000:0000` |
+| Hasil program | `3000h` | `0000h` | `0001h` | `30000h–30001h` | 2 byte | Nilai akhir pada `3000:0000` |
+| Slot lokal | `3000h` | `0002h` | `0081h` | `30002h–30081h` | 128 byte | 64 slot nilai 16-bit |
+| Runtime reserved | `3000h` | `0082h` | `FFFFh` | `30082h–3FFFFh` | Sisa segmen | Area runtime yang belum digunakan |
 | Runtime stack | `4000h` | `0000h` | `FFFFh` | `40000h–4FFFFh` | 64 KiB | Stack generated program |
 | Compiler stack | `5000h` | `0000h` | `FFFFh` | `50000h–5FFFFh` | 64 KiB | Stack aktif, tumbuh ke bawah |
-| Work memory compiler | `6000h` | `0000h` | `001Eh` | `60000h–6001Eh` | 31 byte dipakai | Status, reader, codegen, dan stack depth |
+| Work memory compiler | `6000h` | `0000h` | `0027h` | `60000h–60027h` | 40 byte dipakai | Status, reader, codegen, stack, dan bitmap lokal |
 | Firmware alias | `F000h` | `0000h` | `FFFFh` | `F0000h–FFFFFh` | 64 KiB | Alias legacy ROM; entry `F000:0000`, vector `F000:FFF0` |
 | Firmware reset mapping | — | — | — | `FFFF0000h–FFFFFFFFh` | 64 KiB | Pemetaan firmware atas; reset fisik `FFFFFFF0h` |
 
@@ -23,7 +25,16 @@ Output buffer menempati `2000:0000–0FFF`, kapasitas 4096 byte. Compiler
 menggunakan DS=`6000h`, ES=`2000h`, SS:SP=`5000:FFFE` selama dua pass.
 Sebelum far jump, compiler memvalidasi hasil. Generated prologue lalu
 mengubah DS menjadi `3000h` dan SS:SP menjadi `4000:FFFE`; CS menjadi
-`2000h`. Nilai di `3000:0000` adalah hasil akhir program.
+`2000h`. Nilai di `3000:0000` adalah hasil akhir; slot 0 mulai di `3000:0002`.
+
+| Region data runtime | Offset | Alamat fisik | Ukuran | Kegunaan |
+|---|---:|---:|---:|---|
+| Hasil akhir | `0000h–0001h` | `30000h–30001h` | 2 byte | Word yang disimpan saat HALT |
+| Slot lokal 0–63 | `0002h–0081h` | `30002h–30081h` | 128 byte | 64 nilai word tetap |
+| Cadangan | `0082h–FFFFh` | `30082h–3FFFFh` | 65406 byte | Belum dipakai |
+
+Alamat slot dihitung `0002h + indeks * 2`. Contohnya slot 5 berada pada
+offset `000Ch`, alamat fisik `3000Ch`; slot 63 berada di `30080h–30081h`.
 
 | Offset work | Ukuran | Nama | Fungsi |
 |---:|---:|---|---|
@@ -47,6 +58,8 @@ mengubah DS menjadi `3000h` dan SS:SP menjadi `4000:FFFE`; CS menjadi
 | `001Ch` | 1 | `WORK_IR_HALT_SEEN` | Penanda HALT IR |
 | `001Dh` | 1 | `WORK_CODEGEN_HALT_EMITTED` | Penanda suffix runtime |
 | `001Eh` | 1 | `WORK_CODEGEN_PROLOGUE_EMITTED` | Penanda prologue runtime |
+| `001Fh` | 1 | `WORK_RESERVED_1F` | Cadangan, dibersihkan saat init |
+| `0020h–0027h` | 8 | `WORK_LOCAL_INIT_BITMAP` | Satu bit inisialisasi untuk setiap slot lokal |
 
 SP dimulai dari `FFFEh`. CALL 16-bit menyimpan word di
 `SS:FFFC = 5000:FFFC`, alamat fisik `5FFFCh`. Stack tumbuh turun; SP awal

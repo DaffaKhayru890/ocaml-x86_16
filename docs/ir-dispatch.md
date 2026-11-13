@@ -27,5 +27,5 @@ setelah END menghasilkan TRAILING_DATA. Opcode tak dikenal, unsupported,
 dan operand terpotong mempunyai error tersendiri. Semua error disimpan di DS
 work memory dan menghentikan alur utama.
 
-Jalankan `make test` untuk menguji opcode yang didukung, opcode unsupported,
-stack, terminator, dan operand rusak.
+Jalankan `make test` untuk menguji opcode aritmetika, slot lokal,
+perbandingan, opcode belum didukung, stack, terminator, dan operand rusak.

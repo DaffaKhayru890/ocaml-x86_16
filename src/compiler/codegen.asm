@@ -8,6 +8,7 @@ codegen_init:
     mov word [ds:WORK_STACK_DEPTH], 0
     mov word [ds:WORK_MAX_STACK_DEPTH], 0
     mov word [ds:WORK_STACK_ERROR], 0
+    call clear_local_init_bitmap
     mov byte [ds:WORK_IR_HALT_SEEN], 0
     mov byte [ds:WORK_CODEGEN_HALT_EMITTED], 0
     mov byte [ds:WORK_CODEGEN_PROLOGUE_EMITTED], 0
@@ -34,6 +35,14 @@ codegen_dispatch:
     jne .not_iconst
     jmp codegen_iconst
 .not_iconst:
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_LOAD_LOCAL
+    jne .not_load_local
+    jmp codegen_load_local
+.not_load_local:
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_STORE_LOCAL
+    jne .not_store_local
+    jmp codegen_store_local
+.not_store_local:
     cmp byte [ds:WORK_CURRENT_OPCODE], IR_ADD
     jne .not_add
     jmp codegen_add
@@ -50,9 +59,19 @@ codegen_dispatch:
     jne .not_neg
     jmp codegen_neg
 .not_neg:
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_EQ
+    je .comparison
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_NE
+    je .comparison
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_LT
+    je .comparison
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_GT
+    je .comparison
     cmp byte [ds:WORK_CURRENT_OPCODE], IR_HALT
     jne .unsupported
     jmp codegen_halt
+.comparison:
+    jmp codegen_compare
 .unsupported:
     mov ax, ERR_UNSUPPORTED_OPCODE
     call compiler_record_error

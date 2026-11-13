@@ -16,7 +16,8 @@ tidak menjadi bagian generated program.
 
 Compiler menulis runtime prologue, membaca ulang tiap instruksi, memvalidasi
 efek stack sekali lagi, lalu `codegen_dispatch` memanggil routine khusus.
-Routine codegen hanya memanggil emit8/emit16 melalui macro helper. IR_END
+Routine codegen menerjemahkan arithmetic, local variable, comparison, dan
+HALT; semuanya memanggil emit8/emit16 melalui macro helper. IR_END
 mengakhiri pass; hasil diperiksa untuk panjang, prefix prologue, stack akhir,
 dan suffix halt.
 

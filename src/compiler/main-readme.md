@@ -17,11 +17,12 @@ generated prologue mengganti CS=`2000h`, DS=`3000h`, SS:SP=`4000:FFFE`.
 ## Urutan kode
 
 1. Muat DS/ES dan panggil `compiler_initialize`.
-2. Jalankan `ir_init`, header validation, serta `ir_validate_program`.
-3. Validasi stack depth tiap opcode dan posisi HALT.
+2. Jalankan `ir_init`, validasi header, serta `ir_validate_program`.
+3. Validasi stack depth, slot lokal, bitmap inisialisasi, dan posisi HALT.
 4. Jalankan emitter self-test; setiap error berhenti sebelum generation.
 5. `codegen_init` mereset reader, stack, DI, dan emitter length.
-6. Emit runtime prologue, kemudian generation pass kedua.
+6. Emit prologue runtime, lalu hasilkan arithmetic, local, dan comparison
+   pada lintasan kedua.
 7. Validasi generated prologue, panjang, HALT suffix, dan terminator.
 8. Simpan SUCCESS lalu far jump ke `OUTPUT_SEGMENT:0000`.
 

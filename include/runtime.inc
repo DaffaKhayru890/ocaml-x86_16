@@ -18,6 +18,7 @@ MC_MODRM_IMUL_BX        equ 0xEB
 MC_NEG_AX               equ 0xF7
 MC_MODRM_NEG_AX         equ 0xD8
 MC_MOV_MOFFS_AX         equ 0xA3
+MC_MOV_AX_MOFFS         equ 0xA1
 MC_HLT                  equ 0xF4
 MC_JMP_SHORT            equ 0xEB
 MC_JMP_SHORT_BACK_3     equ 0xFD

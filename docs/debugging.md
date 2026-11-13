@@ -1,4 +1,4 @@
-# Debugging compiler dan runtime Phase 02
+# Debugging compiler dan runtime Phase 03
 
 ## Jalankan build dan tes
 
@@ -43,16 +43,17 @@ SS:SP=`5000:FFFE`. Ketika generated program mencapai HLT:
 Periksa status, stack, dan hasil:
 
 ```gdb
-x/31bx 0x60000
+x/40bx 0x60000
 x/64bx 0x20000
 x/hx 0x30000
+x/hx 0x30002
 ```
 
 QEMU HMP dapat memakai perintah `info registers`, `xp /64bx 0x20000`, dan
 `xp /1hx 0x30000`. Nilai hasil adalah word little-endian; contoh hasil 36
 tersimpan sebagai `24 00`. Nilai negatif memakai two's complement, misalnya
 -14 adalah `F2 FF` dan dapat dibaca sebagai `FFFEh` serta ditafsirkan signed
-`-14`.
+`-14`. Slot lokal 0 dapat diperiksa di `30002h`; slot 63 di `30080h`.
 
 ## Generated code
 
@@ -68,6 +69,15 @@ B8 03 00 50 5B 58 F7 EB 50
 Output berada di RAM fisik `20000h`; code dieksekusi langsung dengan
 `CS:IP=2000:0000`. Tidak ada file machine-code host atau BIOS output.
 
+## Variabel dan comparison
+
+Pada breakpoint HLT fixture 36, GDB memeriksa `EAX=0001`, `DS=3000`,
+`SS:SP=4000:FFFE`, hasil `x/hx 0x30000 = 0001`, slot 0/1 di
+`0x30002/0x30004 = 000A/0014`, serta bitmap `x/8bx 0x60020` dimulai
+`03`. Byte comparison memakai `39 D8 7D 03` untuk CMP AX,BX dan JGE
+short. Nilai JGE memastikan signed `10<20` false-path tidak dipilih dan
+hasil benar didorong.
+
 ## Kode error
 
 | Kode | Arti |
@@ -81,6 +91,14 @@ Output berada di RAM fisik `20000h`; code dieksekusi langsung dengan
 | `000Fh` | Runtime generated code tidak valid |
 | `0010h` | Program kosong atau HALT tanpa hasil |
 | `0011h` | HALT bukan instruksi semantik terakhir |
+| `0012h` | Slot lokal di luar rentang 0–63 |
+| `0013h` | Slot lokal dibaca sebelum diinisialisasi |
+| `0014h` | Perhitungan slot melewati area lokal yang ditetapkan |
+| `0015h` | Nilai Boolean selain nol/satu diminta dibuat |
+| `0016h` | Opcode perbandingan tidak dapat dipetakan |
+
+Kode `0011h` sudah dipakai `ERR_INVALID_IR_FLOW` pada Phase 02, sehingga
+kode baru dimulai dari `0012h` agar tidak ada nilai error yang bertabrakan.
 
 Error compiler berhenti di HLT loop firmware dengan CS=`F000h`; tidak ada far
 jump. Kesalahan emitter saat codegen juga mencegah eksekusi buffer parsial.

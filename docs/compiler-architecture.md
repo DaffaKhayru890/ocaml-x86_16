@@ -1,4 +1,4 @@
-# Arsitektur compiler Phase 02
+# Arsitektur compiler Phase 03
 
 ## Ruang lingkup
 
@@ -11,7 +11,7 @@ Assembly, atau compiler host.
 ```text
 Reset ROM -> firmware -> compiler_main
                          |
-                         +-- Pass 1: reader + dispatcher + stack validation
+                         +-- Pass 1: reader + dispatcher + stack/local validation
                          |
                          +-- Emitter self-test terisolasi
                          |
@@ -27,10 +27,11 @@ Reset ROM -> firmware -> compiler_main
                                                   HLT loop
 ```
 
-Virtual stack menyimpan nilai signed 16-bit. ADD, SUB, MUL, dan NEG
-diterjemahkan langsung ke encoding 8086. Nilai akhir disimpan ke `3000:0000`.
-Branch, local variable, comparison, label relocation, dan operasi lain yang
-belum didukung ditolak sebelum generated code dijalankan.
+Virtual stack menyimpan nilai 16-bit. ADD, SUB, MUL, NEG, EQ, NE, LT, GT,
+LOAD_LOCAL, dan STORE_LOCAL diterjemahkan langsung ke encoding 8086. Nilai
+akhir disimpan ke `3000:0000`, sedangkan slot lokal menempati `3000:0002`
+sampai `3000:0081`. Branch, label relocation, dan operasi lain yang belum
+didukung ditolak sebelum kode hasil dijalankan.
 
 ## Register dan alamat
 
@@ -55,16 +56,16 @@ menunjuk ROM, setiap load IR memakai override `[cs:si]`. Output memakai
 2. Set SI ke `program_ir`, sisa awal ke ukuran header + payload.
 3. Baca empat byte magic, versi, dan panjang payload dengan reader.
 4. Cocokkan panjang deklarasi terhadap panjang byte yang tersisa.
-5. Dispatch opcode sambil memvalidasi efek stack; belum ada code emission.
+5. Dispatch opcode sambil memvalidasi stack, slot, dan bitmap; belum ada emission.
 6. Jalankan emitter self-test, lalu reset output buffer.
 7. Reset reader dan stack state; emit runtime prologue dan hasil pass kedua.
 8. Validasi panjang, prologue, terminator, stack, dan halt suffix.
 9. Simpan SUCCESS, lalu far jump ke CS=`2000h`; error berhenti di firmware.
-10. Generated program menyiapkan DS=`3000h`, SS:SP=`4000:FFFE`, menyimpan
-    hasil dan menjalankan HLT loop.
+10. Program hasil menyiapkan DS=`3000h`, SS:SP=`4000:FFFE`, membaca/menulis
+    slot lokal, menyimpan hasil dan menjalankan HLT loop.
 
 ## Build dan debugging
 
-`make` membangun ROM dan listing. `make test` menguji 11 program arithmetic
-dan fixture validasi, stack, serta overflow. Peta register dan perintah GDB
+`make` membangun ROM dan listing. `make test` menguji program arithmetic,
+local, comparison, bitmap, dan fixture error. Peta register dan perintah GDB
 ada di `docs/debugging.md`.

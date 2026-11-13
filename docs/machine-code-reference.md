@@ -13,10 +13,17 @@ little-endian; tidak digunakan assembler pada runtime.
 | `push ax` | `50` | Mendorong word |
 | `pop ax` | `58` | Mengambil word |
 | `pop bx` | `5B` | Mengambil operand kanan |
+| `mov ax,[disp16]` | `A1 lo hi` | Membaca slot melalui DS |
+| `mov [disp16],ax` | `A3 lo hi` | Menulis slot melalui DS |
 | `add ax,bx` | `01 D8` | left+right |
 | `sub ax,bx` | `29 D8` | left-right |
 | `imul bx` | `F7 EB` | signed DX:AX; gunakan AX |
 | `neg ax` | `F7 D8` | Negasi two's complement |
+| `cmp ax,bx` | `39 D8` | Memperbarui FLAGS tanpa menyimpan selisih |
+| `je rel8` | `74 rel8` | Jcc jika sama |
+| `jne rel8` | `75 rel8` | Jcc jika tidak sama |
+| `jge rel8` | `7D rel8` | Signed: kiri ≥ kanan |
+| `jle rel8` | `7E rel8` | Signed: kiri ≤ kanan |
 | `mov [0000h],ax` | `A3 00 00` | Offset DS absolut |
 | `hlt` | `F4` | Menunggu event |
 | `jmp short -3` | `EB FD` | Kembali ke opcode HLT |
@@ -25,5 +32,8 @@ Contoh ICONST `1234h`: `B8 34 12 50`. Runtime prologue:
 `FA B8 00 30 8E D8 B8 00 40 8E D0 BC FE FF`. Sequence result/HLT:
 `58 A3 00 00 F4 EB FD`.
 
+Comparison menghasilkan pola `5B 58 39 D8 B8 00 00 Jcc 03 B8 01 00 50`.
+Jcc dipilih per opcode; offset `03h` melompati `MOV AX,1`.
 Encoding ini adalah subset instruksi 8086, termasuk immediate register,
-stack, arithmetic, moffs store, far JMP firmware, dan short JMP.
+stack, arithmetic, moffs load/store, CMP, conditional short jump, far JMP
+firmware, dan short JMP.

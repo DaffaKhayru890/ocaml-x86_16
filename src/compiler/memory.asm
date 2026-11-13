@@ -24,6 +24,8 @@ compiler_initialize:
     mov byte [ds:WORK_IR_HALT_SEEN], 0
     mov byte [ds:WORK_CODEGEN_HALT_EMITTED], 0
     mov byte [ds:WORK_CODEGEN_PROLOGUE_EMITTED], 0
+    mov byte [ds:WORK_RESERVED_1F], 0
+    call clear_local_init_bitmap
     xor di, di
     ret
 

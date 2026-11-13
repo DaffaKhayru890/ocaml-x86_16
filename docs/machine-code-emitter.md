@@ -16,7 +16,7 @@ ketika berhasil. Register umum lain dipertahankan. Status/error berada pada
 DS:WORK dan panjang output adalah `WORK_EMIT_LENGTH`.
 
 Self-test terpisah Phase 01 menulis `B8 34 12 50 58` dan menguji batas
-buffer. Phase 02 menjalankannya sebelum pass kedua, lalu mereset DI dan
+buffer. Compiler menjalankannya sebelum pass kedua, lalu mereset DI dan
 panjang output agar self-test tidak masuk ke generated program. Codegen
 menggunakan emitter untuk setiap opcode runtime dan tidak melanjutkan saat
 CF menandakan overflow.

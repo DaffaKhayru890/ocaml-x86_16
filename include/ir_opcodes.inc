@@ -1,4 +1,4 @@
-; Opcode IR yang dikenali dispatcher Phase 01.
+; Opcode IR yang dikenali dispatcher compiler.
 IR_END          equ 0x00
 IR_ICONST       equ 0x01
 IR_LOAD_LOCAL   equ 0x02

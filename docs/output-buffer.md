@@ -28,13 +28,16 @@ Work memory compiler adalah segment DS=`6000h`; field penting:
 | `6000Ch` | Versi IR |
 | `6000Eh` | Panjang payload |
 
+Work memory memakai 40 byte, termasuk bitmap slot lokal pada `60020h–60027h`.
 Di GDB, setelah CPU mencapai loop HLT, baca:
 
 ```gdb
 x/64bx 0x20000
-x/31bx 0x60000
+x/40bx 0x60000
 x/hx 0x30000
+x/hx 0x30002
 ```
 
 Untuk program `(7+5)*3`, output machine code berukuran 43 byte dan hasil
-`0024h` disimpan di `30000h`.
+`0024h` disimpan di `30000h`. Slot lokal 0, bila dipakai, berada pada
+`30002h`; bitmap compile-time dapat dibaca pada `60020h`.

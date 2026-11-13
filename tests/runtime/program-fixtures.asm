@@ -127,6 +127,31 @@
 %elif IR_TEST_CASE = 107
     db IR_END
     db IR_ADD
+%elif IR_TEST_CASE = 108
+    db IR_LOAD_LOCAL
+    db 64
+    db IR_HALT
+    db IR_END
+%elif IR_TEST_CASE = 109
+    db IR_ICONST
+    dw 1
+    db IR_STORE_LOCAL
+    db 64
+    db IR_ICONST
+    dw 1
+    db IR_HALT
+    db IR_END
+%elif IR_TEST_CASE = 110
+    db IR_STORE_LOCAL
+    db 0
+    db IR_HALT
+    db IR_END
+%elif IR_TEST_CASE = 111
+    db IR_ICONST
+    dw 1
+    db IR_EQ
+    db IR_HALT
+    db IR_END
 %elif IR_TEST_CASE = 101 || IR_TEST_CASE = 102 || IR_TEST_CASE = 103
     db IR_END
 %else

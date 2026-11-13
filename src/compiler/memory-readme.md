@@ -18,13 +18,15 @@ dan error loop.
 
 ## Register dan alamat
 
-DS harus sama dengan `WORK_SEGMENT=6000h`. Field pada offset `0000h–001Eh`
-berada pada alamat fisik `60000h–6001Eh`. DS berubah ke `3000h` hanya setelah
+DS harus sama dengan `WORK_SEGMENT=6000h`. Field pada offset `0000h–0027h`
+berada pada alamat fisik `60000h–60027h`. DS berubah ke `3000h` hanya setelah
 far jump generated code; alamat work memory tetap dapat diperiksa secara
-fisik. ES dan DI bukan milik modul ini; ES menunjuk output segment `2000h`.
+fisik. Bitmap lokal berukuran delapan byte berada pada `60020h–60027h`.
+ES dan DI bukan milik modul ini; ES menunjuk output segment `2000h`.
 
 ## Build dan debugging
 
 Jalankan `make test`. Gunakan GDB untuk memeriksa status pada `0x60000`,
 kode error di `0x60002`, remaining di `0x60004`, jumlah instruksi di
-`0x60008`, panjang generated code di `0x6000A`, dan stack depth di `0x60016`.
+`0x60008`, panjang generated code di `0x6000A`, stack depth di `0x60016`,
+dan bitmap lokal di `0x60020`.

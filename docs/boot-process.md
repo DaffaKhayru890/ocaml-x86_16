@@ -11,15 +11,16 @@
 5. `initialize_segments` mengatur DS/ES ke `F000h`, SS ke `5000h`, dan SP ke
    `FFFEh`. Setelah itu CALL/RET aman.
 6. `firmware_main` memanggil compiler. Pass 1 memvalidasi header, opcode,
-   operand, terminator, dan virtual stack tanpa menghasilkan code.
+   operand, terminator, virtual stack, indeks slot, dan inisialisasi local
+   tanpa menghasilkan code.
 7. Compiler menjalankan self-test emitter secara terpisah, lalu mereset
    pointer/output dan mengulangi pembacaan IR untuk Pass 2.
-8. Code generator menghasilkan runtime prologue, operasi stack-based, dan
-   halt/result sequence melalui emit8/emit16 ke RAM `2000:0000`.
+8. Code generator menghasilkan prologue, arithmetic, akses local, comparison
+   signed, dan urutan halt/hasil lewat emit8/emit16 ke RAM `2000:0000`.
 9. Compiler memvalidasi code, menyimpan `STATUS_SUCCESS`, lalu far jump ke
    `2000:0000`. Jika ada error, ia tidak melompat dan berhenti di firmware.
-10. Generated prologue mengatur DS=`3000h`, SS:SP=`4000:FFFE`; program
-    menyimpan nilai akhir di `3000:0000`, lalu memasuki HLT loop.
+10. Prologue mengatur DS=`3000h`, SS:SP=`4000:FFFE`; program memakai slot
+    lokal di DS:`0002h–0081h`, menyimpan hasil di `3000:0000`, lalu HLT.
 
 Tidak ada BIOS interrupt, syscall, atau layanan OS. Tidak ada IDT/handler
 interrupt yang dipasang. IF tetap nol; NMI bukan IRQ maskable dan masih

@@ -55,14 +55,16 @@ instruksi far jump lima byte pada offset `FFF0h`, lalu padding akhir
 menghasilkan panjang tepat `10000h`. `ORG` tidak memetakan ROM ke alamat
 fisik dan tidak menambahkan prefix ke file.
 
-Sesudah inisialisasi stack Phase 00, firmware menjalankan compiler Phase 02.
+Sesudah inisialisasi stack Phase 00, firmware menjalankan compiler Phase 03.
 Pass pertama menggunakan DS=`6000h` untuk state dan CS override untuk
-membaca/validasi IR tanpa output. Self-test emitter dijalankan secara
-terpisah. Pass kedua mengulang IR dan mengeluarkan instruksi dengan ES=`2000h`.
-Compiler memvalidasi bentuk code sebelum far jump. Generated code menyiapkan
-DS=`3000h` dan SS:SP=`4000:FFFE`, menghitung hasil di CPU, menyimpan word
-hasil ke `3000:0000`, lalu memasuki HLT loop.
+membaca/validasi IR tanpa output. Bitmap lokal melacak STORE/LOAD secara
+linear; self-test emitter dijalankan terpisah. Pass kedua mengulang IR dan
+mengeluarkan instruksi dengan ES=`2000h`. Compiler memvalidasi bentuk code
+sebelum far jump. Generated code memakai DS=`3000h` untuk hasil dan 64 slot
+lokal, serta SS:SP=`4000:FFFE` untuk stack. EQ/NE/LT/GT menghasilkan nilai
+Boolean 0/1 melalui CMP dan Jcc 8086.
 
 Dokumen detail: `compiler-architecture.md`, `code-generation.md`,
-`stack-machine.md`, `arithmetic.md`, `machine-code-reference.md`, `runtime.md`,
-dan `debugging.md`.
+`stack-machine.md`, `arithmetic.md`, `local-variables.md`,
+`local-memory-layout.md`, `comparison.md`, `boolean-representation.md`,
+`machine-code-reference.md`, `runtime.md`, dan `debugging.md`.

@@ -1,4 +1,4 @@
-# Compiler Bare-Metal x86 16-bit — Phase 00/01/02
+# Compiler Bare-Metal x86 16-bit — Phase 00/01/02/03
 
 ## Tujuan
 
@@ -23,9 +23,10 @@ yang dapat dipakai. Detail dan cara memverifikasi pemetaan ada di
 - `src/firmware.asm`: perakitan flat binary dan urutan modul.
 - `src/boot/*.asm`: entry, inisialisasi, main, dan reset vector; tiap modul
   memiliki README pendamping.
-- `src/compiler/*.asm`: reader, dispatcher, stack validator, code generator,
-  arithmetic, emitter, runtime, dan compiler main; tiap modul memiliki README.
-- `src/examples/program_ir.asm`: contoh IR statis yang disertakan dalam ROM.
+- `src/compiler/*.asm`: reader, dispatcher, stack/local validator, code
+  generator, arithmetic, variables, local memory, comparison, Boolean,
+  emitter, runtime, dan compiler main; tiap modul memiliki README.
+- `src/examples/*.asm`: contoh IR arithmetic, variabel, dan comparison.
 - `include/*.inc`: konstanta firmware dan peta region.
 - `scripts/`: build serta peluncuran QEMU di Linux dan Windows.
 - `build/custom_rom.bin`: keluaran 65536 byte.
@@ -47,16 +48,18 @@ bytes, error stack/IR, hasil runtime, dan HLT di QEMU.
 
 ## Batasan phase
 
-Phase 02 mendukung ICONST, ADD, SUB, MUL, NEG, dan HALT. Local, comparison,
-branch/label relocation, dan overflow exception belum didukung. Arithmetic
-berwrap modulo 65536. CPU dapat dibangunkan NMI meskipun IRQ dimatikan.
+Phase 03 mendukung ICONST, LOAD_LOCAL, STORE_LOCAL, ADD, SUB, MUL, NEG,
+EQ, NE, LT, GT, dan HALT. Branch/label relocation serta overflow exception
+belum didukung. Nilai arithmetic berwrap modulo 65536. CPU dapat dibangunkan NMI meskipun IRQ dimatikan.
 Implementasi ini khusus konfigurasi PC QEMU yang diuji, bukan firmware
 universal untuk semua machine atau CPU 8086.
 
-## Rujukan Phase 02
+## Rujukan Phase 02 dan 03
 
 - `compiler-architecture.md` dan `code-generation.md`: alur compiler dua pass.
 - `stack-machine.md` dan `arithmetic.md`: aturan stack virtual dan operasi.
 - `machine-code-reference.md`: byte encoding instruksi yang dihasilkan.
 - `runtime.md` dan `memory-map.md`: prologue, hasil, stack, dan peta alamat.
 - `debugging.md` dan `qemu-debugging.md`: pemeriksaan GDB/QEMU serta hasil tes.
+- `local-variables.md` dan `local-memory-layout.md`: slot variabel dan bitmap.
+- `comparison.md` dan `boolean-representation.md`: comparison signed dan Boolean.

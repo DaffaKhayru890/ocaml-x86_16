@@ -20,7 +20,7 @@ HALT_SEQUENCE = bytes.fromhex("58 a3 00 00 f4 eb fd")
 EXPECTED_ERRORS = {
     11: 0x000A,
     12: 0x000C,
-    13: 0x000D,
+    13: 0x0013,
     14: 0x0011,
     15: 0x0011,
     16: 0x0010,
@@ -35,7 +35,12 @@ EXPECTED_ERRORS = {
     105: 0x0005,
     106: 0x0006,
     107: 0x0007,
+    108: 0x0012,
+    109: 0x0012,
+    110: 0x000A,
+    111: 0x000A,
 }
+PASS_ONE_ERRORS = {13, 108, 109, 110, 111}
 PROGRAMS = {
     0: ([("iconst", 7), ("iconst", 5), ("add",), ("iconst", 3), ("mul",)], 36),
     1: ([("iconst", 42)], 42),
@@ -57,6 +62,78 @@ PROGRAMS = {
     8: ([("iconst", -32768)], -32768),
     9: ([("iconst", 32767), ("iconst", 1), ("add",)], -32768),
     10: ([("iconst", -32768), ("neg",)], -32768),
+    21: ([("iconst", 10), ("store", 0), ("load", 0)], 10),
+    22: (
+        [
+            ("iconst", 10),
+            ("store", 0),
+            ("iconst", 20),
+            ("store", 1),
+            ("load", 0),
+            ("load", 1),
+            ("add",),
+        ],
+        30,
+    ),
+    23: (
+        [
+            ("iconst", 10),
+            ("store", 0),
+            ("iconst", 25),
+            ("store", 0),
+            ("load", 0),
+        ],
+        25,
+    ),
+    24: ([("iconst", 10), ("iconst", 10), ("eq",)], 1),
+    25: ([("iconst", 10), ("iconst", 20), ("eq",)], 0),
+    26: ([("iconst", 10), ("iconst", 20), ("ne",)], 1),
+    27: ([("iconst", 10), ("iconst", 10), ("ne",)], 0),
+    28: ([("iconst", 10), ("iconst", 20), ("lt",)], 1),
+    29: ([("iconst", 20), ("iconst", 10), ("lt",)], 0),
+    30: ([("iconst", -5), ("iconst", 3), ("lt",)], 1),
+    31: ([("iconst", 3), ("iconst", -5), ("lt",)], 0),
+    32: ([("iconst", 20), ("iconst", 10), ("gt",)], 1),
+    33: ([("iconst", 10), ("iconst", 20), ("gt",)], 0),
+    34: ([("iconst", 5), ("iconst", -5), ("gt",)], 1),
+    35: ([("iconst", -5), ("iconst", 5), ("gt",)], 0),
+    36: (
+        [
+            ("iconst", 10),
+            ("store", 0),
+            ("iconst", 20),
+            ("store", 1),
+            ("load", 0),
+            ("load", 1),
+            ("lt",),
+        ],
+        1,
+    ),
+    37: (
+        [
+            ("iconst", 7),
+            ("store", 0),
+            ("iconst", 5),
+            ("store", 1),
+            ("iconst", 3),
+            ("store", 2),
+            ("load", 0),
+            ("load", 1),
+            ("add",),
+            ("load", 2),
+            ("mul",),
+        ],
+        36,
+    ),
+    38: ([("iconst", 77), ("store", 63), ("load", 63)], 77),
+}
+EXPECTED_LOCALS = {
+    21: {0: 10},
+    22: {0: 10, 1: 20},
+    23: {0: 25},
+    36: {0: 10, 1: 20},
+    37: {0: 7, 1: 5, 2: 3},
+    38: {63: 77},
 }
 
 
@@ -93,6 +170,17 @@ def encode_operation(operation):
     if name == "iconst":
         value = operation[1] & 0xFFFF
         return bytes((0xB8, value & 0xFF, value >> 8, 0x50))
+    if name in ("load", "store"):
+        address = 2 + operation[1] * 2
+        low, high = address & 0xFF, address >> 8
+        if name == "load":
+            return bytes((0xA1, low, high, 0x50))
+        return bytes((0x58, 0xA3, low, high))
+    if name in ("eq", "ne", "lt", "gt"):
+        jump = {"eq": 0x75, "ne": 0x74, "lt": 0x7D, "gt": 0x7E}[name]
+        return bytes(
+            (0x5B, 0x58, 0x39, 0xD8, 0xB8, 0, 0, jump, 3, 0xB8, 1, 0, 0x50)
+        )
     return {
         "add": bytes.fromhex("5b 58 01 d8 50"),
         "sub": bytes.fromhex("5b 58 29 d8 50"),
@@ -117,7 +205,12 @@ def maximum_stack_depth(operations):
         if operation[0] == "iconst":
             depth += 1
             maximum = max(maximum, depth)
-        elif operation[0] in ("add", "sub", "mul"):
+        elif operation[0] == "load":
+            depth += 1
+            maximum = max(maximum, depth)
+        elif operation[0] == "store":
+            depth -= 1
+        elif operation[0] in ("add", "sub", "mul", "eq", "ne", "lt", "gt"):
             depth -= 1
     return maximum
 
@@ -206,9 +299,9 @@ def run_case(case, expected_error=None):
                     raise AssertionError(f"Fixture {case}: CPU belum mencapai HLT.")
                 time.sleep(0.02)
             work = read_values(
-                monitor_command(connection, "xp /31bx 0x60000")
+                monitor_command(connection, "xp /40bx 0x60000")
             )
-            if len(work) < 31:
+            if len(work) < 40:
                 raise AssertionError(f"Fixture {case}: work memory tidak terbaca.")
 
             status = work[0] | (work[1] << 8)
@@ -222,6 +315,10 @@ def run_case(case, expected_error=None):
                 if "cs =f000" not in registers.lower():
                     raise AssertionError(
                         f"Fixture {case}: compiler gagal tetapi kontrol pindah ke runtime."
+                    )
+                if case in PASS_ONE_ERRORS and work[10:12] != [0, 0]:
+                    raise AssertionError(
+                        f"Fixture {case}: pass pertama menghasilkan byte code."
                     )
                 return
 
@@ -257,12 +354,32 @@ def run_case(case, expected_error=None):
                     f"aktual={bytes(generated).hex(' ')}\n"
                     f"harapan={code.hex(' ')}"
                 )
+            expected_bitmap = bytearray(8)
+            for operation in operations:
+                if operation[0] == "store":
+                    slot = operation[1]
+                    expected_bitmap[slot // 8] |= 1 << (slot % 8)
+            if work[32:40] != list(expected_bitmap):
+                raise AssertionError(
+                    f"Program {case}: bitmap lokal {work[32:40]}, "
+                    f"harapan {list(expected_bitmap)}."
+                )
             result = read_values(monitor_command(connection, "xp /1hx 0x30000"))
             expected_word = expected_result & 0xFFFF
             if result != [expected_word]:
                 raise AssertionError(
                     f"Program {case}: hasil {result}, harapan {expected_word:04X}."
                 )
+            for slot, expected_value in EXPECTED_LOCALS.get(case, {}).items():
+                address = 0x30000 + 2 + slot * 2
+                value = read_values(
+                    monitor_command(connection, f"xp /1hx {address:#x}")
+                )
+                if value != [expected_value & 0xFFFF]:
+                    raise AssertionError(
+                        f"Program {case}: slot {slot} berisi {value}, "
+                        f"harapan {expected_value & 0xFFFF:04X}."
+                    )
         finally:
             connection.close()
             process.terminate()
@@ -276,7 +393,7 @@ def run_case(case, expected_error=None):
 def main():
     for case in PROGRAMS:
         run_case(case)
-        print(f"LULUS: program arithmetic {case}.")
+        print(f"LULUS: program runtime {case}.")
     for case, error in EXPECTED_ERRORS.items():
         run_case(case, error)
         print(f"LULUS: fixture error {case}, kode {error:04X}.")

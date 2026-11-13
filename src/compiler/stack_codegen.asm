@@ -14,17 +14,57 @@ codegen_validate_stack:
     jne .not_iconst
     jmp .push_value
 .not_iconst:
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_LOAD_LOCAL
+    jne .not_load_local
+    jmp .load_local
+.not_load_local:
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_STORE_LOCAL
+    jne .not_store_local
+    jmp .store_local
+.not_store_local:
     cmp byte [ds:WORK_CURRENT_OPCODE], IR_ADD
     je .binary
     cmp byte [ds:WORK_CURRENT_OPCODE], IR_SUB
     je .binary
     cmp byte [ds:WORK_CURRENT_OPCODE], IR_MUL
     je .binary
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_EQ
+    je .binary
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_NE
+    je .binary
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_LT
+    je .binary
+    cmp byte [ds:WORK_CURRENT_OPCODE], IR_GT
+    je .binary
     cmp byte [ds:WORK_CURRENT_OPCODE], IR_NEG
     je .unary
     cmp byte [ds:WORK_CURRENT_OPCODE], IR_HALT
-    jne .unsupported
-    jmp .halt
+    je .halt
+    jmp .unsupported
+
+.load_local:
+    mov al, [ds:WORK_DECODED_OPERAND]
+    call check_local_initialized
+    jnc .load_ready
+    jmp .failed
+.load_ready:
+    jmp .push_value
+
+.store_local:
+    cmp word [ds:WORK_STACK_DEPTH], 1
+    jae .store_value_ready
+    mov ax, ERR_STACK_UNDERFLOW
+    call codegen_record_stack_error
+    ret
+.store_value_ready:
+    mov al, [ds:WORK_DECODED_OPERAND]
+    call set_local_initialized
+    jnc .store_ready
+    jmp .failed
+.store_ready:
+    dec word [ds:WORK_STACK_DEPTH]
+    clc
+    ret
 
 .binary:
     cmp word [ds:WORK_STACK_DEPTH], 2
@@ -80,6 +120,9 @@ codegen_validate_stack:
 .unsupported:
     mov ax, ERR_UNSUPPORTED_OPCODE
     call compiler_record_error
+    ret
+.failed:
+    stc
     ret
 
 ; Memastikan tabel berakhir sesudah satu HALT yang mengonsumsi satu hasil.

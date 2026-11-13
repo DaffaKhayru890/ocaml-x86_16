@@ -37,6 +37,13 @@ payload yang berada setelah header di dalam tabel ROM.
 Contoh `IR_ICONST 1234h` disimpan sebagai `01 34 12`. Tabel menyertakan
 `IR_END` satu byte sebagai instruksi terakhir payload.
 
+`IR_LOAD_LOCAL slot8` membaca slot lalu mendorong word ke stack; efek depth
+`+1`. `IR_STORE_LOCAL slot8` mengambil word dan menyimpan ke slot; efeknya
+`-1`. Indeks sah 0–63. `IR_EQ`, `IR_NE`, `IR_LT`, dan `IR_GT` mengambil dua
+word dan mendorong Boolean, sehingga efek stack masing-masing `-1`.
+Perbandingan LT/GT memakai semantik signed 16-bit. Boolean false adalah
+`0000h`, true adalah `0001h`.
+
 ## Validasi
 
 Magic harus tepat, versi harus didukung, dan panjang payload harus sesuai.
