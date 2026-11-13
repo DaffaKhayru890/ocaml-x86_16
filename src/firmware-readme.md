@@ -9,9 +9,10 @@ alamat fisik; QEMU yang memetakan keluaran 64 KiB sebagai firmware.
 ## Hubungan dengan modul lain
 
 Berkas ini memuat konstanta dari `include/`, lalu memasukkan modul entry,
-inisialisasi, main, dan reset vector secara berurutan. Urutan ini penting:
-kode rutin harus berada sebelum padding reset vector, yang harus menjadi
-byte terakhir sebelum padding citra.
+inisialisasi, firmware main, work memory, reader, dispatcher, emitter, tes
+emitter, compiler main, tabel IR, dan reset vector. Urutan ini penting:
+routine harus berada sebelum tabel IR; tabel IR harus berada sebelum padding
+reset vector; vector menjadi byte terakhir sebelum padding citra.
 
 ## Register dan alamat
 
@@ -27,8 +28,10 @@ berasal dari `include/constants.inc` dan `include/memory_map.inc`.
 3. `%include` konstanta dan macro `FIRMWARE_FAR_JUMP` sebagai interface
    instruksi transfer antar-segmen.
 4. `%include` modul reset entry; label `firmware_entry` berada di offset 0.
-5. Modul inisialisasi dan main menyediakan rutinitas yang dipanggil firmware.
-6. Modul reset vector mengisi sampai offset `FFF0h`, menulis far jump, dan
+5. Modul compiler dan self-test emitter menyediakan routine yang dipanggil
+   firmware.
+6. Static IR ditempatkan di ROM dan labelnya menjadi sumber pointer reader.
+7. Modul reset vector mengisi sampai offset `FFF0h`, menulis far jump, dan
    mengisi hingga ukuran ROM `10000h`.
 
 Flat binary tidak menyimpan header, tabel relokasi, atau metadata linker.

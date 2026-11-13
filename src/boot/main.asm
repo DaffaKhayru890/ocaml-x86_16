@@ -1,8 +1,9 @@
-; Program utama Phase 00 kembali ke pemanggil untuk menguji CALL dan RET.
+; Firmware memanggil compiler Phase 01 setelah stack siap.
 firmware_main:
+    call compiler_main
     ret
 
-; HLT menunggu interrupt; CLI mencegah IRQ biasa membangunkan CPU.
+; Menghentikan CPU setelah compiler selesai.
 halt_loop:
     hlt
     jmp halt_loop

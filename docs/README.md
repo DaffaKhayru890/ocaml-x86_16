@@ -1,12 +1,11 @@
-# Firmware Bare-Metal x86 16-bit — Phase 00
+# Compiler Bare-Metal x86 16-bit — Phase 00/01
 
 ## Tujuan
 
-Proyek ini menghasilkan citra firmware raw 64 KiB untuk menguji urutan reset
-CPU x86 pada QEMU. Firmware mengarahkan reset vector ke entry point, mengatur
-segmen dan stack real-mode, menguji satu pasangan CALL/RET, lalu tidur dalam
-loop HLT. Tidak ada BIOS bawaan, sistem operasi, UEFI, DOS, syscall, atau
-interrupt BIOS.
+Proyek ini menghasilkan citra firmware raw 64 KiB untuk QEMU. Firmware
+menginisialisasi real mode dan stack, lalu compiler Assembly membaca serta
+memvalidasi static IR dan menguji emitter byte-to-RAM. Tidak ada BIOS bawaan,
+sistem operasi, UEFI, DOS, syscall, atau interrupt BIOS.
 
 ## Rancangan mesin dan reset
 
@@ -24,10 +23,14 @@ yang dapat dipakai. Detail dan cara memverifikasi pemetaan ada di
 - `src/firmware.asm`: perakitan flat binary dan urutan modul.
 - `src/boot/*.asm`: entry, inisialisasi, main, dan reset vector; tiap modul
   memiliki README pendamping.
+- `src/compiler/*.asm`: work memory, reader, dispatcher, emitter, dan compiler
+  main; tiap modul memiliki README pendamping.
+- `src/examples/program_ir.asm`: contoh IR statis yang disertakan dalam ROM.
 - `include/*.inc`: konstanta firmware dan peta region.
 - `scripts/`: build serta peluncuran QEMU di Linux dan Windows.
 - `build/custom_rom.bin`: keluaran 65536 byte.
-- `docs/`: penjelasan arsitektur, memori, reset, segmen, dan debugging.
+- `tests/`: fixture IR, self-test emitter, dan pengujian runtime QEMU.
+- `docs/`: penjelasan firmware, compiler, IR, emitter, memori, dan debugging.
 
 ## Build dan jalankan
 
@@ -38,12 +41,14 @@ Sambungkan dengan `gdb -ex 'target remote :1234'`. Untuk melanjutkan gunakan
 `continue`; untuk inspeksi instruksi gunakan `x/i $cs*16+$eip` pada mode
 real yang telah berpindah dari reset.
 
-Build memeriksa ukuran ROM dan lima byte reset vector. Keberhasilan build
-tidak menggantikan pemeriksaan eksekusi: hasil aktual QEMU/GDB harus dicatat
-terpisah.
+Build memeriksa ukuran ROM dan lima byte reset vector serta menghasilkan
+`build/custom_rom.lst` untuk pemetaan source ke offset. `make test` merakit
+fixture valid/tidak valid lalu memeriksa status, HLT, dan output buffer di
+QEMU.
 
 ## Batasan phase
 
-Tidak ada output konsol atau driver. CPU dapat dibangunkan NMI meskipun IRQ
-maskable dimatikan. Implementasi ini khusus konfigurasi PC QEMU yang diuji,
-bukan citra firmware universal untuk semua machine atau CPU 8086.
+Phase 01 hanya memvalidasi IR; belum ada code generation operasi, label
+relocation, ataupun eksekusi program hasil. CPU dapat dibangunkan NMI meskipun
+IRQ maskable dimatikan. Implementasi ini khusus konfigurasi PC QEMU yang
+diuji, bukan firmware universal untuk semua machine atau CPU 8086.

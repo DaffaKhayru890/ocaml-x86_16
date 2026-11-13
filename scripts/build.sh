@@ -10,7 +10,12 @@ if ! command -v nasm >/dev/null 2>&1; then
 fi
 
 mkdir -p build
-nasm -f bin -I . src/firmware.asm -o build/custom_rom.bin
+nasm -f bin -I . -l build/custom_rom.lst src/firmware.asm -o build/custom_rom.bin
+
+if grep -Eq '^[[:space:]]*[0-9]+[[:space:]]+[0-9A-F]{8}[[:space:]]+0F8[0-9A-F]' build/custom_rom.lst; then
+    printf '%s\n' "Galat: listing memuat conditional jump yang tidak kompatibel dengan 8086." >&2
+    exit 1
+fi
 
 size="$(wc -c < build/custom_rom.bin | tr -d '[:space:]')"
 if [[ "$size" != "65536" ]]; then

@@ -1,4 +1,4 @@
-# Arsitektur firmware
+# Arsitektur firmware dan compiler
 
 ## Jalur eksekusi
 
@@ -18,6 +18,13 @@ initialize_segments (DS, ES, SS, SP)
         | CALL / RET
         v
 firmware_main
+        |
+        v
+compiler_main
+        |
+        +--> Reader -> Dispatcher -> validasi IR
+        |
+        +--> Self-test emitter -> RAM 2000:0000
         |
         v
 halt_loop (HLT / JMP)
@@ -46,3 +53,8 @@ file flat. Modul entry berada di awal citra. Padding `FFh` menempatkan
 instruksi far jump lima byte pada offset `FFF0h`, lalu padding akhir
 menghasilkan panjang tepat `10000h`. `ORG` tidak memetakan ROM ke alamat
 fisik dan tidak menambahkan prefix ke file.
+
+Sesudah inisialisasi stack Phase 00, firmware menjalankan compiler Phase 01.
+Compiler menggunakan DS=`6000h` untuk state, ES=`2000h` untuk output, dan
+CS override untuk membaca IR dari ROM. Ia hanya memvalidasi opcode/operand;
+emitter diuji lewat jalur terpisah dan byte hasilnya tidak dieksekusi.

@@ -56,10 +56,10 @@ far jump.
 
 Untuk pemeriksaan breakpoint dengan simbol, bangun listing/simbol terpisah
 atau pasang breakpoint alamat entry setelah far jump (`0xf0000`). Tanpa
-simbol debug, gunakan `stepi` dan inspeksi disassembly. Register yang
-diperiksa pada entry inisialisasi meliputi CS, IP/EIP, DS, ES, SS, SP/ESP.
-Pada `halt_loop`, DS/ES harus `F000`, SS `5000`, dan SP kembali `FFFE`
-setelah CALL/RET selesai.
+simbol debug, gunakan `stepi` dan inspeksi disassembly. Register yang diperiksa pada firmware entry meliputi CS, IP/EIP, DS, ES, SS,
+SP/ESP. Sesudah compiler berjalan, DS=`6000`, ES=`2000`, SS=`5000`, SP
+`FFFE`; SI menunjuk akhir IR dan DI bernilai lima. Status, error, serta output
+dijelaskan rinci pada `docs/debugging.md`.
 
 ## Perilaku HLT
 
