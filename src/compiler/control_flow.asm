@@ -124,6 +124,22 @@ control_flow_add_instruction:
 ; Resolves seluruh operand label dan menolak target yang tidak menunjuk instruksi.
 control_flow_resolve_labels:
     mov word [ds:WORK_TEMP_INDEX], 0
+.validate_label_targets:
+    mov ax, [ds:WORK_TEMP_INDEX]
+    cmp ax, [ds:WORK_LABEL_COUNT]
+    jae .labels_valid
+    call control_flow_label_offset
+    mov ax, [ds:bx + CF_LABEL_TARGET_INDEX]
+    cmp ax, [ds:WORK_INSTRUCTION_COUNT]
+    jb .next_label
+    mov ax, ERR_INVALID_BRANCH_TARGET
+    call compiler_record_error
+    ret
+.next_label:
+    inc word [ds:WORK_TEMP_INDEX]
+    jmp .validate_label_targets
+.labels_valid:
+    mov word [ds:WORK_TEMP_INDEX], 0
 .next_instruction:
     mov ax, [ds:WORK_TEMP_INDEX]
     cmp ax, [ds:WORK_INSTRUCTION_COUNT]
@@ -244,6 +260,7 @@ control_flow_generate_code:
     call control_flow_set_label_offsets
     mov ax, [ds:WORK_CURRENT_INSTRUCTION]
     call control_flow_instruction_offset
+    mov [ds:bx + CF_INST_CODE_OFFSET], di
     mov al, [ds:bx + CF_INST_OPCODE]
     mov [ds:WORK_CURRENT_OPCODE], al
     mov ax, [ds:bx + CF_INST_OPERAND]

@@ -42,15 +42,16 @@ index, code offset, dan flag defined.
   menyimpan indeks executable saat deklarasi.
 - `control_flow_add_instruction`: memvalidasi operand local dan menambahkan
   record executable. `IR_LABEL` tidak dipanggil pada prosedur ini.
-- `control_flow_resolve_labels`: mencari target setiap JMP/JZ/JNZ dan
-  menolak target yang berada sesudah instruksi terakhir.
+- `control_flow_resolve_labels`: memvalidasi bahwa setiap deklarasi label
+  menunjuk instruksi executable, mencari target setiap JMP/JZ/JNZ, dan
+  menolak label di akhir tabel termasuk label yang tidak direferensikan.
 - `control_flow_validate_program`: decode hingga IR_END, resolve labels, lalu
   memanggil analisis CFG.
 - `control_flow_set_label_offsets`: mencatat DI untuk semua label pada indeks
   yang akan diemits, termasuk label di akhir yang tidak direferensikan.
 - `control_flow_generate_code`: mengambil setiap record, memulihkan bitmap
-  input, dispatch codegen, mengatur offset akhir, menerapkan relocation, lalu
-  memvalidasi output.
+  input, menyimpan `CF_INST_CODE_OFFSET` sebelum dispatch, mengatur offset
+  akhir, menerapkan relocation, lalu memvalidasi output.
 
 Untuk index `i`, instruction-table address adalah
 `6000h:0100h + i * 19`; label-table address adalah `6000h:1400h + i * 7`.

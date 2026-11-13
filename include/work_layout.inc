@@ -35,4 +35,7 @@ WORK_TEMP_INDEX              equ 0x0039
 WORK_REACHABLE_HALTS         equ 0x003B
 WORK_TEMP_DEPTH              equ 0x003D
 WORK_TEMP_BITMAP             equ 0x0040
-WORK_LAYOUT_END              equ 0x0048
+WORK_RELOCATION_APPLIED_COUNT equ 0x0048
+WORK_VALIDATION_OFFSET       equ 0x004A
+WORK_TEMP_SIZE               equ 0x004C
+WORK_LAYOUT_END              equ 0x004E

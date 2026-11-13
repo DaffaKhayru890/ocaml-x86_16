@@ -1,4 +1,4 @@
-# Arsitektur compiler Phase 04
+# Arsitektur compiler Phase 05
 
 ## Ruang lingkup
 
@@ -18,7 +18,8 @@ Reset ROM -> firmware -> compiler_main
                          |
                          +-- Emit dari tabel -> label code offsets
                                               -> relocation rel16
-                                              -> validasi output
+                                              -> relocation validation
+                                              -> validasi template dan target
                                                       |
                                               far jump 2000:0000
                                                       |
@@ -70,19 +71,26 @@ pada `6000:1600`; detail field serta physical address ada di
 6. JMP ditulis sebagai `E9 rel16`. JZ/JNZ mengonsumsi kondisi melalui
    `POP AX; TEST AX,AX`, memakai conditional short jump pembalik kondisi
    sepanjang tiga byte, lalu `JMP rel16`.
-7. `relocation_apply_all` menambal little-endian displacement:
-   `target_offset - (patch_offset + 2)`. Compiler baru far jump setelah
-   panjang, kapasitas, prologue, terminator, dan relocation tervalidasi.
+7. `relocation_apply_all` memvalidasi source record, label, patch site,
+   opcode E9, dan menambal displacement little-endian:
+   `target_offset - (patch_offset + 2)`.
+8. `machine_code_validate_generated_program` mencocokkan setiap instruksi
+   dengan template, memastikan offset kontigu, semua HALT lengkap, semua
+   branch menunjuk instruksi executable, dan seluruh relocation diterapkan.
+   Compiler baru far jump setelah panjang, kapasitas, prologue, terminator,
+   dan machine code tervalidasi.
 
 ## Batas dan pengujian
 
 Kapasitas: 256 instruksi executable, 64 label, 128 relocation, dan output
 4096 byte. Record instruction berukuran 19 byte, label 7 byte, relocation 6
-byte. `make test` menguji arithmetic, local, branch forward/backward,
-conditional, loop, merge valid/invalid, definite assignment, dan error label.
+byte. `make test` mencakup runtime, bytes hasil codegen, disassembly, nilai
+signed batas, branch forward/backward lebih dari rel8, label akhir invalid,
+merge valid/invalid, definite assignment, dan error IR.
 
 ## Build dan debugging
 
-Jalankan `make` dan `make test`. Status compiler berada di `60000h`; tabel
-dimulai di `60100h`; generated code berada di `20000h`; result runtime di
-`30000h`. Perintah inspeksi memori dan GDB ada di `debugging.md`.
+Jalankan `make` dan `make test`; untuk tes GDB jalankan `make test-gdb`.
+Status compiler berada di `60000h`; tabel dimulai di `60100h`; generated code
+berada di `20000h`; result runtime di `30000h`. Perintah inspeksi memori dan
+GDB ada di `debugging.md`.

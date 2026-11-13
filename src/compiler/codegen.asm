@@ -13,6 +13,7 @@ codegen_init:
     mov word [ds:WORK_STATUS], STATUS_RUNNING
     mov word [ds:WORK_ERROR_CODE], ERR_SUCCESS
     mov word [ds:WORK_RELOCATION_COUNT], 0
+    mov word [ds:WORK_RELOCATION_APPLIED_COUNT], 0
     call emitter_init
     clc
     ret
@@ -150,9 +151,7 @@ codegen_validate_generated_code:
     je .prologue_valid
     jmp .invalid
 .prologue_valid:
-    jmp .valid
-.valid:
-    clc
+    call machine_code_validate_generated_program
     ret
 .invalid:
     mov ax, ERR_RUNTIME_INVALID

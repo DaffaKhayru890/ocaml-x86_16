@@ -41,6 +41,9 @@ compiler_initialize:
     mov word [ds:WORK_TEMP_BITMAP + 2], 0
     mov word [ds:WORK_TEMP_BITMAP + 4], 0
     mov word [ds:WORK_TEMP_BITMAP + 6], 0
+    mov word [ds:WORK_RELOCATION_APPLIED_COUNT], 0
+    mov word [ds:WORK_VALIDATION_OFFSET], 0
+    mov word [ds:WORK_TEMP_SIZE], 0
     call clear_local_init_bitmap
     xor di, di
     ret

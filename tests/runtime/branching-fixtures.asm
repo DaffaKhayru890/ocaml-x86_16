@@ -164,4 +164,53 @@
     dw 1
     db IR_HALT
     db IR_END
+%elif IR_TEST_CASE = 53
+    db IR_ICONST
+    dw 1
+    db IR_HALT
+    db IR_LABEL
+    dw 7
+    db IR_END
+%elif IR_TEST_CASE = 54
+    db IR_ICONST
+    dw 0
+    db IR_JZ
+    dw 1
+    %rep 40
+        db IR_ICONST
+        dw 1
+        db IR_NEG
+        db IR_STORE_LOCAL
+        db 0
+    %endrep
+    db IR_ICONST
+    dw 43
+    db IR_JMP
+    dw 2
+    db IR_LABEL
+    dw 1
+    db IR_ICONST
+    dw 42
+    db IR_LABEL
+    dw 2
+    db IR_HALT
+    db IR_END
+%elif IR_TEST_CASE = 55
+    db IR_LABEL
+    dw 1
+    %rep 40
+        db IR_ICONST
+        dw 1
+        db IR_NEG
+        db IR_STORE_LOCAL
+        db 0
+    %endrep
+    db IR_ICONST
+    dw 1
+    db IR_JZ
+    dw 1
+    db IR_ICONST
+    dw 42
+    db IR_HALT
+    db IR_END
 %endif

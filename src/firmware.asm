@@ -34,6 +34,7 @@ ORG 0
 %include "src/compiler/comparison.asm"
 %include "src/compiler/runtime.asm"
 %include "src/compiler/codegen.asm"
+%include "src/compiler/machine_code_validation.asm"
 %include "src/compiler/main.asm"
 %include "src/examples/program_ir.asm"
 %include "src/boot/reset_vector.asm"

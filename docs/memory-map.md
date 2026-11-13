@@ -17,7 +17,7 @@ tambahan di area alamat reset tinggi yang disediakan oleh QEMU PC.
 | Runtime reserved | `3000h` | `0082h` | `FFFFh` | `30082h–3FFFFh` | Sisa segmen | Area runtime yang belum digunakan |
 | Runtime stack | `4000h` | `0000h` | `FFFFh` | `40000h–4FFFFh` | 64 KiB | Stack generated program |
 | Compiler stack | `5000h` | `0000h` | `FFFFh` | `50000h–5FFFFh` | 64 KiB | Stack aktif, tumbuh ke bawah |
-| Work state compiler | `6000h` | `0000h` | `0047h` | `60000h–60047h` | 72 byte | Status, reader, codegen, CFG, temporary, dan bitmap |
+| Work state compiler | `6000h` | `0000h` | `004Dh` | `60000h–6004Dh` | 78 byte | Status, reader, CFG, temporary, relocation, dan validasi code |
 | Instruction table | `6000h` | `0100h` | `13FFh` | `60100h–613FFh` | 4.864 byte | Maksimal 256 record executable berukuran 19 byte |
 | Label table | `6000h` | `1400h` | `15BFh` | `61400h–615BFh` | 448 byte | Maksimal 64 record label berukuran 7 byte |
 | Relocation table | `6000h` | `1600h` | `18FFh` | `61600h–618FFh` | 768 byte | Maksimal 128 record patch berukuran 6 byte |
@@ -65,6 +65,9 @@ offset `000Ch`, alamat fisik `3000Ch`; slot 63 berada di `30080h–30081h`.
 | `0020h–0027h` | 8 | `WORK_LOCAL_INIT_BITMAP` | Satu bit inisialisasi untuk setiap slot lokal |
 | `0028h–003Eh` | 23 | State CFG tambahan | Jumlah tabel, iterasi, indeks aktif, dan depth sementara |
 | `0040h–0047h` | 8 | `WORK_TEMP_BITMAP` | Bitmap keluaran sementara untuk transfer dataflow |
+| `0048h–0049h` | 2 | `WORK_RELOCATION_APPLIED_COUNT` | Jumlah patch yang telah diterapkan |
+| `004Ah–004Bh` | 2 | `WORK_VALIDATION_OFFSET` | Offset instruksi yang sedang divalidasi |
+| `004Ch–004Dh` | 2 | `WORK_TEMP_SIZE` | Ukuran encoding aktif atau pointer record sementara |
 | `0100h–13FFh` | 4.864 | Instruction table | Opcode, operand, offset IR, target, code offset, input depth, dan bitmap |
 | `1400h–15BFh` | 448 | Label table | ID label, indeks target, code offset, dan flag |
 | `1600h–18FFh` | 768 | Relocation table | Indeks label, offset displacement, dan indeks instruksi sumber |
@@ -72,6 +75,12 @@ offset `000Ch`, alamat fisik `3000Ch`; slot 63 berada di `30080h–30081h`.
 SP dimulai dari `FFFEh`. CALL 16-bit menyimpan word di
 `SS:FFFC = 5000:FFFC`, alamat fisik `5FFFCh`. Stack tumbuh turun; SP awal
 adalah batas atas eksklusif praktis, bukan byte terakhir yang ditulis.
+
+Work state berakhir pada offset `004Dh` (`WORK_LAYOUT_END=004Eh`, batas akhir
+eksklusif). Ruang `004Eh–00FFh` memisahkan state dari instruction table.
+Codegen menulis `CF_INST_CODE_OFFSET` sebelum emission; validator kemudian
+memastikan offset record berurutan, encoding tepat, relocation selesai, dan
+setiap branch menunjuk instruksi executable.
 
 Semua segment tersebut berada dalam RAM QEMU 16 MiB kecuali firmware ROM.
 Instruction table berakhir pada `13FFh`, label table mulai `1400h`, dan

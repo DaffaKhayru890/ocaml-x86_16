@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Menguji ROM, code generation, runtime, dan jalur error melalui QEMU HMP."""
 
+import argparse
 import os
 import re
 import socket
@@ -13,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 NASM = os.environ.get("NASM", "nasm")
 QEMU = os.environ.get("QEMU", "qemu-system-i386")
+NDISASM = os.environ.get("NDISASM", "ndisasm")
 RUNTIME_PROLOGUE = bytes.fromhex(
     "fa b8 00 30 8e d8 b8 00 40 8e d0 bc fe ff"
 )
@@ -44,6 +46,7 @@ EXPECTED_ERRORS = {
     48: 0x0013,
     51: 0x001A,
     52: 0x0019,
+    53: 0x001B,
 }
 PROGRAMS = {
     0: ([("iconst", 7), ("iconst", 5), ("add",), ("iconst", 3), ("mul",)], 36),
@@ -120,6 +123,31 @@ PROGRAMS = {
         ],
         55,
     ),
+    54: (
+        [
+            ("iconst", 0),
+            ("jz", 1),
+            *([("iconst", 1), ("neg",), ("store", 0)] * 40),
+            ("iconst", 43),
+            ("jmp", 2),
+            ("label", 1),
+            ("iconst", 42),
+            ("label", 2),
+            ("halt",),
+        ],
+        42,
+    ),
+    55: (
+        [
+            ("label", 1),
+            *([("iconst", 1), ("neg",), ("store", 0)] * 40),
+            ("iconst", 1),
+            ("jz", 1),
+            ("iconst", 42),
+            ("halt",),
+        ],
+        42,
+    ),
     49: (
         [
             ("iconst", 0),
@@ -168,6 +196,10 @@ PROGRAMS = {
     33: ([("iconst", 10), ("iconst", 20), ("gt",)], 0),
     34: ([("iconst", 5), ("iconst", -5), ("gt",)], 1),
     35: ([("iconst", -5), ("iconst", 5), ("gt",)], 0),
+    56: ([("iconst", -32768), ("iconst", 32767), ("lt",)], 1),
+    57: ([("iconst", 32767), ("iconst", -32768), ("gt",)], 1),
+    58: ([("iconst", -32768), ("iconst", -32768), ("eq",)], 1),
+    59: ([("iconst", -32768), ("iconst", 32767), ("ne",)], 1),
     36: (
         [
             ("iconst", 10),
@@ -206,8 +238,121 @@ EXPECTED_LOCALS = {
     37: {0: 7, 1: 5, 2: 3},
     38: {63: 77},
     41: {0: 0},
+    55: {0: -1},
 }
-PASS_ONE_ERRORS = {13, 44, 45, 46, 47, 48, 52, 108, 109, 110, 111}
+PASS_ONE_ERRORS = {13, 44, 45, 46, 47, 48, 52, 53, 108, 109, 110, 111}
+TEST_SUITES = {
+    "all": {
+        "description": "Seluruh runtime dan seluruh fixture error.",
+        "programs": None,
+        "errors": None,
+    },
+    "runtime": {
+        "description": "Semua program valid melalui CPU QEMU.",
+        "programs": set(PROGRAMS),
+        "errors": set(),
+    },
+    "codegen": {
+        "description": "Byte machine code aktual, template, dan disassembly 16-bit.",
+        "programs": set(PROGRAMS),
+        "errors": set(),
+    },
+    "arithmetic": {
+        "description": "Aritmetika 16-bit dan perbandingan signed termasuk batas.",
+        "programs": set(range(11)) | set(range(24, 36)) | set(range(56, 60)),
+        "errors": set(),
+    },
+    "variables": {
+        "description": "Slot lokal, load/store, dan gabungan ekspresi.",
+        "programs": {21, 22, 23, 36, 37, 38},
+        "errors": set(),
+    },
+    "control-flow": {
+        "description": "Branch maju/mundur, loop, relocation, dan target jauh.",
+        "programs": {40, 41, 42, 43, 49, 50, 54, 55},
+        "errors": {44, 45, 46, 47, 51, 52, 53},
+    },
+    "errors": {
+        "description": "Semua jalur error dan penghentian code generation.",
+        "programs": set(),
+        "errors": set(EXPECTED_ERRORS),
+    },
+    "ir-errors": {
+        "description": "Header, payload, operand, opcode, dan terminator IR.",
+        "programs": set(),
+        "errors": set(range(101, 112)),
+    },
+    "emitter": {
+        "description": "Self-test emitter byte/word, batas buffer, dan overflow.",
+        "programs": {0},
+        "errors": set(),
+    },
+}
+
+
+def parse_equ_constants(path):
+    constants = {}
+    pattern = re.compile(r"^\s*([A-Z][A-Z0-9_]*)\s+equ\s+(0x[0-9A-Fa-f]+|\d+)\s*$")
+    for line in path.read_text().splitlines():
+        match = pattern.match(line)
+        if match:
+            constants[match.group(1)] = int(match.group(2), 0)
+    return constants
+
+
+def validate_static_layout():
+    root_constants = parse_equ_constants(ROOT / "include/constants.inc")
+    flow = parse_equ_constants(ROOT / "include/control_flow.inc")
+    work = parse_equ_constants(ROOT / "include/work_layout.inc")
+    error_constants = {
+        name: value
+        for name, value in parse_equ_constants(ROOT / "include/compiler.inc").items()
+        if name.startswith("ERR_")
+    }
+    if len(set(error_constants.values())) != len(error_constants):
+        raise AssertionError("Kode error pada include/compiler.inc tidak unik.")
+    if work["WORK_LAYOUT_END"] > flow["CF_INSTRUCTION_TABLE"]:
+        raise AssertionError("State work menimpa awal instruction table.")
+    instruction_end = (
+        flow["CF_INSTRUCTION_TABLE"]
+        + flow["MAX_IR_INSTRUCTIONS"] * flow["CF_INSTRUCTION_SIZE"]
+    )
+    label_end = (
+        flow["CF_LABEL_TABLE"]
+        + flow["MAX_IR_LABELS"] * flow["CF_LABEL_SIZE"]
+    )
+    relocation_end = (
+        flow["CF_RELOCATION_TABLE"]
+        + flow["MAX_IR_RELOCATIONS"] * flow["CF_RELOCATION_SIZE"]
+    )
+    if instruction_end > flow["CF_LABEL_TABLE"]:
+        raise AssertionError("Instruction table overlap dengan label table.")
+    if label_end > flow["CF_RELOCATION_TABLE"]:
+        raise AssertionError("Label table overlap dengan relocation table.")
+    if relocation_end > 0x10000:
+        raise AssertionError("Relocation table keluar dari segment work.")
+    if root_constants["OUTPUT_CAPACITY"] > 0x10000:
+        raise AssertionError("Output buffer keluar dari segment code.")
+
+
+def disassemble_code(code, path, case):
+    path.write_bytes(code)
+    result = subprocess.run(
+        [NDISASM, "-b", "16", str(path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    listing = result.stdout.lower()
+    if not listing.strip():
+        raise AssertionError(f"Program {case}: ndisasm tidak menghasilkan instruksi.")
+    forbidden = re.compile(
+        r"\b(?:o32|a32|eax|ebx|ecx|edx|esi|edi|esp|ebp|eip)\b"
+    )
+    if forbidden.search(listing):
+        raise AssertionError(
+            f"Program {case}: disassembly memuat instruksi/register non-8086."
+        )
 
 
 def read_prompt(connection):
@@ -322,7 +467,17 @@ def maximum_stack_depth(operations):
             depth -= 1
         elif operation[0] == "halt":
             depth = max(0, depth - 1)
-        elif operation[0] in ("add", "sub", "mul", "eq", "ne", "lt", "gt"):
+        elif operation[0] in (
+            "add",
+            "sub",
+            "mul",
+            "eq",
+            "ne",
+            "lt",
+            "gt",
+            "jz",
+            "jnz",
+        ):
             depth -= 1
     return maximum
 
@@ -455,6 +610,8 @@ def run_case(case, expected_error=None):
                 43: 1,
                 49: 1,
                 50: 1,
+                54: 1,
+                55: 1,
             }.get(case, maximum_stack_depth(operations))
             if work[24:26] != [maximum & 0xFF, maximum >> 8]:
                 raise AssertionError(f"Program {case}: maksimum virtual stack salah.")
@@ -475,11 +632,14 @@ def run_case(case, expected_error=None):
                     f"aktual={bytes(generated).hex(' ')}\n"
                     f"harapan={code.hex(' ')}"
                 )
+            disassemble_code(code, Path(directory) / "generated.bin", case)
             expected_bitmap = bytearray(8)
             for operation in operations:
                 if operation[0] == "store":
                     slot = operation[1]
                     expected_bitmap[slot // 8] |= 1 << (slot % 8)
+            if case == 54:
+                expected_bitmap = bytearray(8)
             if work[32:40] != list(expected_bitmap):
                 raise AssertionError(
                     f"Program {case}: bitmap lokal {work[32:40]}, "
@@ -512,12 +672,40 @@ def run_case(case, expected_error=None):
 
 
 def main():
-    for case in PROGRAMS:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--suite",
+        choices=TEST_SUITES,
+        default="all",
+        help="Jalankan kategori tes tertentu.",
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="Tampilkan suite beserta tujuan pengujian.",
+    )
+    args = parser.parse_args()
+    if args.list:
+        for name, suite in TEST_SUITES.items():
+            print(f"{name}: {suite['description']}")
+        return
+
+    validate_static_layout()
+    suite = TEST_SUITES[args.suite]
+    program_cases = set(PROGRAMS) if suite["programs"] is None else suite["programs"]
+    error_cases = (
+        set(EXPECTED_ERRORS) if suite["errors"] is None else suite["errors"]
+    )
+    for case in sorted(program_cases):
         run_case(case)
         print(f"LULUS: program runtime {case}.")
-    for case, error in EXPECTED_ERRORS.items():
-        run_case(case, error)
-        print(f"LULUS: fixture error {case}, kode {error:04X}.")
+    for case in sorted(error_cases):
+        run_case(case, EXPECTED_ERRORS[case])
+        print(f"LULUS: fixture error {case}, kode {EXPECTED_ERRORS[case]:04X}.")
+    print(
+        f"LULUS: suite {args.suite}; "
+        f"{len(program_cases)} runtime, {len(error_cases)} fixture error."
+    )
 
 
 if __name__ == "__main__":

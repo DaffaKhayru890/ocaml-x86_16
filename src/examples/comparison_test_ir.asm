@@ -71,6 +71,30 @@
     db IR_ICONST
     dw 5
     db IR_GT
+%elif IR_TEST_CASE = 56
+    db IR_ICONST
+    dw -32768
+    db IR_ICONST
+    dw 32767
+    db IR_LT
+%elif IR_TEST_CASE = 57
+    db IR_ICONST
+    dw 32767
+    db IR_ICONST
+    dw -32768
+    db IR_GT
+%elif IR_TEST_CASE = 58
+    db IR_ICONST
+    dw -32768
+    db IR_ICONST
+    dw -32768
+    db IR_EQ
+%elif IR_TEST_CASE = 59
+    db IR_ICONST
+    dw -32768
+    db IR_ICONST
+    dw 32767
+    db IR_NE
 %endif
     db IR_HALT
     db IR_END

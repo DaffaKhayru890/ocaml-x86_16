@@ -23,8 +23,11 @@ Prosedur mempertahankan DS/ES; register lain tidak dijanjikan tetap.
 - `codegen_generate_program`: delegasikan ke generator instruction table,
   catat label offsets, terapkan relocation, lalu validasi buffer.
 - `codegen_validate_generated_code`: periksa flag prologue/HALT/IR_END,
-  stack compile-time, kapasitas/panjang, dan 14 byte prologue. Validasi tidak
-  mengasumsikan HALT terakhir karena setiap HALT membuat loop terminal.
+  stack compile-time, kapasitas/panjang, dan 14 byte prologue, lalu panggil
+  validator machine code.
+- `machine_code_validate_generated_program`: cocokkan setiap opcode dengan
+  template byte, periksa offset record berurutan, HALT, status relocation,
+  dan target/displacement branch sebelum compiler melakukan far jump.
 
 Pemeriksaan word memakai little-endian x86; contoh word di offset nol
 `B8FAh` mewakili byte `FA B8`. Prosedur validasi membaca kembali RAM output,
@@ -32,6 +35,7 @@ bukan mengubahnya.
 
 ## Build dan debugging
 
-`make test` menguji hasil dan error. Periksa DI/panjang di `6000Ah`, tabel
-mulai `60100h`, serta output di `20000h` menggunakan GDB; rincian ada di
-`docs/debugging.md`.
+`make test-codegen` menguji byte aktual dan disassembly `ndisasm`; `make
+test-gdb` memeriksa entry dan breakpoint HLT. Periksa DI/panjang di `6000Ah`,
+tabel mulai `60100h`, serta output di `20000h` menggunakan GDB; rincian ada
+di `docs/debugging.md`.

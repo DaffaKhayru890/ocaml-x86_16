@@ -34,9 +34,9 @@ program_ir_payload:
     db IR_END
 %elif IR_TEST_CASE = 21 || IR_TEST_CASE = 22 || IR_TEST_CASE = 23 || IR_TEST_CASE = 36 || IR_TEST_CASE = 37 || IR_TEST_CASE = 38
     %include "src/examples/variable_test_ir.asm"
-%elif IR_TEST_CASE >= 24 && IR_TEST_CASE <= 35
+%elif (IR_TEST_CASE >= 24 && IR_TEST_CASE <= 35) || (IR_TEST_CASE >= 56 && IR_TEST_CASE <= 59)
     %include "src/examples/comparison_test_ir.asm"
-%elif IR_TEST_CASE >= 40 && IR_TEST_CASE <= 52
+%elif IR_TEST_CASE >= 40 && IR_TEST_CASE <= 55
     %include "tests/runtime/branching-fixtures.asm"
 %else
     %include "tests/runtime/program-fixtures.asm"

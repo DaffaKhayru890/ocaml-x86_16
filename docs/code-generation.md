@@ -31,7 +31,8 @@ rel16 = target_code_offset - (patch_offset + 2)
 IR_END bukan record executable. Setiap HALT menghasilkan sequence terminal
 `POP AX; MOV [0000h],AX; HLT; JMP short` sehingga multi-HALT tidak memerlukan
 suffix khusus pada akhir buffer. Compiler memvalidasi ukuran, prologue,
-status terminator, dan seluruh patch sebelum far jump `2000:0000`.
+status terminator, seluruh patch, template byte, offset berurutan, sequence
+HALT, dan target branch sebelum far jump `2000:0000`.
 
 ## Encoding operand
 
@@ -41,5 +42,6 @@ Operasi aritmetika memakai POP/operation/PUSH. Operand IR disimpan di
 Build memastikan firmware tidak menggunakan conditional near-jump 386.
 
 Generated code default berada di `20000h`, panjang 43 byte, dan hasil
-`(7+5)*3` ditulis ke `30000h` sebagai word `0024h`. Jalankan `make test`
-untuk memeriksa bytes, hasil, branch, dan fixture error.
+`(7+5)*3` ditulis ke `30000h` sebagai word `0024h`. Jalankan
+`make test-codegen` untuk memeriksa bytes aktual, validasi internal, dan
+disassembly; seluruh tes tersedia melalui `make test`.

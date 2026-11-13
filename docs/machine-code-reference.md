@@ -24,6 +24,9 @@ little-endian; tidak digunakan assembler pada runtime.
 | `jne rel8` | `75 rel8` | Jcc jika tidak sama |
 | `jge rel8` | `7D rel8` | Signed: kiri ≥ kanan |
 | `jle rel8` | `7E rel8` | Signed: kiri ≤ kanan |
+| `jmp rel16` | `E9 lo hi` | Near relative jump 8086 |
+| `jz label` | `58 85 C0 75 03 E9 lo hi` | POP/TEST, JNZ melewati JMP, lalu near jump |
+| `jnz label` | `58 85 C0 74 03 E9 lo hi` | POP/TEST, JZ melewati JMP, lalu near jump |
 | `mov [0000h],ax` | `A3 00 00` | Offset DS absolut |
 | `hlt` | `F4` | Menunggu event |
 | `jmp short -3` | `EB FD` | Kembali ke opcode HLT |
@@ -34,6 +37,11 @@ Contoh ICONST `1234h`: `B8 34 12 50`. Runtime prologue:
 
 Comparison menghasilkan pola `5B 58 39 D8 B8 00 00 Jcc 03 B8 01 00 50`.
 Jcc dipilih per opcode; offset `03h` melompati `MOV AX,1`.
+Conditional branch IR tidak menggunakan opcode near-conditional 386:
+trampoline di atas tetap memakai instruksi yang tersedia pada 8086. Untuk
+near jump, displacement dihitung `target_offset - (offset sesudah rel16)`;
+word ditulis little-endian. Validator firmware memeriksa setiap byte template,
+setiap HALT, offset record, dan hasil relocation sebelum transfer kontrol.
 Encoding ini adalah subset instruksi 8086, termasuk immediate register,
 stack, arithmetic, moffs load/store, CMP, conditional short jump, far JMP
-firmware, dan short JMP.
+firmware, near JMP, dan short JMP.

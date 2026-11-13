@@ -39,6 +39,7 @@ relocation_add:
 ; Menerapkan seluruh displacement rel16 terhadap alamat code offset final.
 relocation_apply_all:
     mov word [ds:WORK_TEMP_INDEX], 0
+    mov word [ds:WORK_RELOCATION_APPLIED_COUNT], 0
 .next_relocation:
     mov ax, [ds:WORK_TEMP_INDEX]
     cmp ax, [ds:WORK_RELOCATION_COUNT]
@@ -54,33 +55,76 @@ relocation_apply_all:
     sub ax, cx
     mov bx, ax
     add bx, CF_RELOCATION_TABLE
+    mov [ds:WORK_TEMP_SIZE], bx
+    mov ax, [ds:bx + CF_RELOC_SOURCE_INDEX]
+    cmp ax, [ds:WORK_INSTRUCTION_COUNT]
+    jb .source_index_valid
+    jmp .invalid
+.source_index_valid:
+    mov [ds:WORK_TEMP_BITMAP], ax
+    call control_flow_instruction_offset
+    mov al, [ds:bx + CF_INST_OPCODE]
+    cmp al, IR_JMP
+    je .source_is_jump
+    cmp al, IR_JZ
+    je .source_is_conditional
+    cmp al, IR_JNZ
+    je .source_is_conditional
+    jmp .invalid
+.source_is_conditional:
+    mov dx, [ds:bx + CF_INST_CODE_OFFSET]
+    cmp dx, 0xFFFF
+    jne .conditional_offset_valid
+    jmp .invalid
+.conditional_offset_valid:
+    add dx, 6
+    jmp .source_patch_ready
+.source_is_jump:
+    mov dx, [ds:bx + CF_INST_CODE_OFFSET]
+    cmp dx, 0xFFFF
+    jne .jump_offset_valid
+    jmp .invalid
+.jump_offset_valid:
+    inc dx
+.source_patch_ready:
+    mov ax, [ds:bx + CF_INST_OPERAND]
+    mov [ds:WORK_TEMP_BITMAP + 2], ax
+    mov bx, [ds:WORK_TEMP_SIZE]
+    cmp dx, [ds:bx + CF_RELOC_PATCH_OFFSET]
+    je .patch_matches
+    jmp .invalid
+.patch_matches:
     mov ax, [ds:bx + CF_RELOC_LABEL_INDEX]
+    cmp ax, [ds:WORK_LABEL_COUNT]
+    jb .label_index_valid
+    jmp .invalid
+.label_index_valid:
     call control_flow_label_offset
+    mov ax, [ds:WORK_TEMP_BITMAP + 2]
+    cmp ax, [ds:bx + CF_LABEL_ID]
+    jne .invalid
+    mov ax, [ds:bx + CF_LABEL_TARGET_INDEX]
+    cmp ax, [ds:WORK_INSTRUCTION_COUNT]
+    jb .label_target_valid
+    jmp .invalid
+.label_target_valid:
     mov ax, [ds:bx + CF_LABEL_CODE_OFFSET]
     cmp ax, 0xFFFF
-    jne .target_available
-    mov ax, ERR_INVALID_RELOCATION
-    call compiler_record_error
-    ret
-.target_available:
+    jne .target_valid
+    jmp .invalid
+.target_valid:
     mov [ds:WORK_TEMP_DEPTH], ax
-    mov ax, [ds:WORK_TEMP_INDEX]
-    mov dx, ax
-    shl ax, 1
-    shl ax, 1
-    shl ax, 1
-    mov cx, dx
-    shl cx, 1
-    sub ax, cx
-    mov bx, ax
-    add bx, CF_RELOCATION_TABLE
+    mov bx, [ds:WORK_TEMP_SIZE]
     mov dx, [ds:bx + CF_RELOC_PATCH_OFFSET]
     cmp dx, 0
-    je .invalid_patch
+    jne .patch_nonzero
+    jmp .invalid_patch
+.patch_nonzero:
     mov ax, dx
     add ax, 2
     cmp ax, di
     jbe .patch_in_range
+    jmp .invalid_patch
 .invalid_patch:
     mov ax, ERR_INVALID_RELOCATION
     call compiler_record_error
@@ -90,28 +134,37 @@ relocation_apply_all:
     dec bx
     cmp byte [es:bx], MC_JMP_NEAR
     je .opcode_valid
-    mov ax, ERR_INVALID_RELOCATION
-    call compiler_record_error
-    ret
+    jmp .invalid
 .opcode_valid:
     mov ax, [ds:WORK_TEMP_DEPTH]
     sub ax, dx
     sub ax, 2
     cmp ax, 0x0FFF
-    jbe .positive_range
+    jbe .displacement_valid
     cmp ax, 0xF000
-    jae .negative_range
+    jae .displacement_valid
     mov ax, ERR_JUMP_DISPLACEMENT_RANGE
     call compiler_record_error
     ret
-.positive_range:
-.negative_range:
+.displacement_valid:
     push di
     mov di, dx
     mov [es:di], ax
     pop di
+    inc word [ds:WORK_RELOCATION_APPLIED_COUNT]
     inc word [ds:WORK_TEMP_INDEX]
     jmp .next_relocation
+.invalid:
+    mov ax, ERR_INVALID_RELOCATION
+    call compiler_record_error
+    ret
 .done:
+    mov ax, [ds:WORK_RELOCATION_APPLIED_COUNT]
+    cmp ax, [ds:WORK_RELOCATION_COUNT]
+    je .all_applied
+    mov ax, ERR_INVALID_RELOCATION
+    call compiler_record_error
+    ret
+.all_applied:
     clc
     ret

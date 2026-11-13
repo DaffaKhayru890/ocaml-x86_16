@@ -20,9 +20,11 @@ index.
 
 - `relocation_add` mencari label, memeriksa kapasitas 128 record, lalu
   menyimpan patch offset tepat setelah opcode `E9`.
-- `relocation_apply_all` mencari code offset label, memeriksa patch berada di
-  batas output dan byte sebelum patch benar-benar `E9`, kemudian menghitung
-  displacement.
+- `relocation_apply_all` memeriksa indeks source, opcode branch, label ID,
+  code offset, patch site sesuai bentuk JMP/JZ/JNZ, batas output, dan byte
+  sebelum patch benar-benar `E9`. Ia menghitung displacement serta
+  menambah `WORK_RELOCATION_APPLIED_COUNT`; hasil validasi memastikan semua
+  record diterapkan.
 
 Rumus rel16 adalah:
 
@@ -38,7 +40,8 @@ dipertahankan sebagai pertahanan.
 
 ## Build dan debugging
 
-Jalankan `make test`; case 40 menguji forward relocation, sedangkan case 41
-menguji backward relocation pada loop. Bandingkan byte hasil di `20000h`
-dengan referensi test dan periksa record menggunakan `xp /32bx 0x61600`.
+Jalankan `make test-control-flow`; case 40 menguji forward relocation, case
+41 backward relocation, dan case 54–55 menguji conditional rel16 melewati
+batas rel8. Bandingkan byte hasil di `20000h` dengan referensi test dan
+periksa record menggunakan `xp /32bx 0x61600`.
 Build juga memastikan tidak ada conditional near-jump 386 di firmware.
